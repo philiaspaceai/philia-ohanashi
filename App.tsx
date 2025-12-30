@@ -237,21 +237,21 @@ function Editor({ data, onChange, onSave, onCancel, onDelete }: any) {
           <div className="space-y-6">
             <div>
                <label className="block text-xs uppercase tracking-wider text-gray-500 mb-2 flex justify-between">
-                 <span>Browser Pitch Shifter (1-10)</span>
-                 <span className="font-mono">{data.browserPitch || 5}/10</span>
+                 <span>Browser Pitch Shifter (1-11)</span>
+                 <span className="font-mono">{data.browserPitch || 6}</span>
                </label>
                <input 
                  type="range" 
                  min="1" 
-                 max="10" 
+                 max="11" 
                  step="1" 
-                 value={data.browserPitch || 5} 
+                 value={data.browserPitch || 6} 
                  onChange={e => update('browserPitch', parseInt(e.target.value))} 
                  className="w-full h-1.5 bg-gray-200 rounded-full appearance-none cursor-pointer accent-black mb-1" 
                />
                <div className="flex justify-between text-[10px] text-gray-400 font-mono uppercase tracking-tighter">
                  <span>Deep</span>
-                 <span>Normal</span>
+                 <span className={data.browserPitch === 6 ? 'text-black font-bold' : ''}>Normal</span>
                  <span>High</span>
                </div>
             </div>
@@ -268,7 +268,7 @@ function Editor({ data, onChange, onSave, onCancel, onDelete }: any) {
               <p className="text-xs text-gray-400">Deep acoustic control</p>
             </div>
             <button onClick={() => update('advancedModeEnabled', !data.advancedModeEnabled)} className={`w-12 h-6 rounded-full relative transition-colors ${data.advancedModeEnabled ? 'bg-black' : 'bg-gray-200'}`}>
-              <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${data.advancedModeEnabled ? 'translate-x-6' : ''}`} />
+              <span className={`absolute top-1 left-1 bg-white h-4 w-4 rounded-full transition-transform ${data.advancedModeEnabled ? 'translate-x-6' : ''}`} />
             </button>
           </div>
 
@@ -361,7 +361,6 @@ function LiveSession({ preset, onClose }: { preset: Preset, onClose: () => void 
         const micSource = inputCtx.createMediaStreamSource(stream);
         const inAnalyser = inputCtx.createAnalyser();
         inAnalyser.fftSize = 256;
-        // CRITICAL: Connect micSource to inAnalyser DIRECTLY so visualizer sees raw mic even when we send silence to AI
         micSource.connect(inAnalyser);
         setInputAnalyser(inAnalyser);
 
@@ -381,9 +380,6 @@ function LiveSession({ preset, onClose }: { preset: Preset, onClose: () => void 
               scriptProcessor.onaudioprocess = (e) => {
                  if (!active || !isConnectedRef.current) return;
                  const inputData = e.inputBuffer.getChannelData(0);
-                 
-                 // REAL-TIME SAFETY LOGIC (Half-Duplex enforcement)
-                 // If AI is speaking (activeSourceCountRef > 0) OR thinking (micMutedRef) -> SEND SILENCE
                  const isAiSpeaking = activeSourceCountRef.current > 0;
                  const isMuted = micMutedRef.current;
                  
@@ -403,22 +399,36 @@ function LiveSession({ preset, onClose }: { preset: Preset, onClose: () => void 
                 if (thinkingTimeoutRef.current) clearTimeout(thinkingTimeoutRef.current);
                 try {
                   const audioBuffer = await decodeAudioData(base64ToUint8Array(base64Audio), outputCtx);
+                  
+                  // CALCULATE PLAYBACK RATE ON 1-11 SCALE (6 is center)
+                  // We map scale 1-11 to semitones -5 to +5.
+                  const semitones = (preset.browserPitch - 6) * 1.0; 
+                  const playbackRate = Math.pow(2, semitones / 12);
+                  
+                  // CALCULATE EFFECTIVE DURATION (Crucial for gapless)
+                  const effectiveDuration = audioBuffer.duration / playbackRate;
+                  
                   const currentTime = outputCtx.currentTime;
-                  if (nextStartTimeRef.current < currentTime) nextStartTimeRef.current = currentTime;
+                  // Ensure we don't start in the past
+                  if (nextStartTimeRef.current < currentTime) {
+                    nextStartTimeRef.current = currentTime;
+                  }
+
                   const source = outputCtx.createBufferSource();
                   source.buffer = audioBuffer;
+                  source.playbackRate.value = playbackRate;
                   
-                  // Apply Browser-side Pitch Shift
-                  // Scale 1-10: 5 is center. Mapping to cents: (val - 5) * 200
-                  const pitchShiftCents = ((preset.browserPitch || 5) - 5) * 200;
-                  source.detune.value = pitchShiftCents;
-
                   source.connect(outGain);
+                  
+                  // Start exactly where the previous chunk (effectively) ends
                   source.start(nextStartTimeRef.current);
                   activeSourcesRef.current.add(source);
                   activeSourceCountRef.current++;
                   updateStatus('SPEAKING'); 
-                  nextStartTimeRef.current += audioBuffer.duration;
+
+                  // Update next start time based on the modified effective duration
+                  nextStartTimeRef.current += effectiveDuration;
+
                   source.onended = () => {
                       activeSourcesRef.current.delete(source);
                       activeSourceCountRef.current--;
@@ -459,7 +469,6 @@ function LiveSession({ preset, onClose }: { preset: Preset, onClose: () => void 
     return () => { active = false; cleanUpResources(); };
   }, [preset]);
 
-  // VAD Effect (Now tracking even during processing to show mic activity)
   useEffect(() => {
     if (!inputAnalyser || (status !== 'LISTENING' && status !== 'PROCESSING' && status !== 'SPEAKING')) return;
     
@@ -474,7 +483,6 @@ function LiveSession({ preset, onClose }: { preset: Preset, onClose: () => void 
           lastVoiceActivityRef.current = Date.now();
           setSilenceDuration(0);
       } else {
-          // Silence tracking only active during LISTENING
           if (status === 'LISTENING') {
               const sil = Date.now() - lastVoiceActivityRef.current;
               setSilenceDuration(sil);
@@ -514,11 +522,9 @@ function LiveSession({ preset, onClose }: { preset: Preset, onClose: () => void 
       </header>
 
       <main className="flex-1 flex flex-col items-center justify-center w-full max-w-lg space-y-12">
-         {/* VISUALIZER CONTAINER */}
          <div className="w-full h-56 relative flex flex-col items-center group">
             <Visualizer outputAnalyser={outputAnalyser} inputAnalyser={inputAnalyser} isActive={true} />
             
-            {/* Reassurance text for Half-Duplex state */}
             {status === 'SPEAKING' && (
                 <div className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 border border-white/5 backdrop-blur-md animate-fade-in">
                     <MicOffIcon />
@@ -526,7 +532,6 @@ function LiveSession({ preset, onClose }: { preset: Preset, onClose: () => void 
                 </div>
             )}
 
-            {/* Silence Warning Overlay */}
             {status === 'LISTENING' && silenceDuration > 5000 && (
                 <div className="absolute -bottom-8 text-[11px] font-mono uppercase tracking-[0.4em] text-yellow-400 animate-fade-in text-center w-full font-bold">
                     Silence... Auto-stop in {((8000 - silenceDuration) / 1000).toFixed(1)}s
@@ -534,7 +539,6 @@ function LiveSession({ preset, onClose }: { preset: Preset, onClose: () => void 
             )}
          </div>
 
-         {/* INTERACTION AREA */}
          <div className="h-24 flex flex-col items-center justify-center w-full relative">
             {(status === 'LISTENING' || status === 'PROCESSING') ? (
                 <div className="flex flex-col items-center space-y-4 animate-fade-in">
