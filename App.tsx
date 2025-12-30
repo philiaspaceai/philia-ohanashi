@@ -13,29 +13,22 @@ import { SessionLogger } from './utils/logger';
 const PlusIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" /></svg>;
 const ChevronLeftIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" /></svg>;
 const TrashIcon = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>;
-const StopIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" /></svg>;
-const MicOffIcon = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3l18 18" /></svg>;
+const MicOffIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3l18 18" /></svg>;
 const EditIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>;
 const SparklesIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>;
-const MicOnIcon = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>;
+const SquareIcon = () => <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1" /></svg>;
 
-// --- VIEW TYPES ---
 type View = 'DASHBOARD' | 'EDITOR' | 'SESSION';
-type SessionStatus = 'CONNECTING' | 'LISTENING' | 'SPEAKING' | 'RECONNECTING' | 'ERROR';
+type SessionStatus = 'CONNECTING' | 'LISTENING' | 'PROCESSING' | 'SPEAKING' | 'RECONNECTING' | 'ERROR';
 
 export default function App() {
   const [view, setView] = useState<View>('DASHBOARD');
   const [presets, setPresets] = useState<Preset[]>([]);
   const [activePreset, setActivePreset] = useState<Preset>(INITIAL_PRESET);
   const [loading, setLoading] = useState(true);
-  
-  // Modal State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  
-  // Editor State
   const [editData, setEditData] = useState<Preset>(INITIAL_PRESET);
 
-  // Load Presets from DB
   useEffect(() => {
     const load = async () => {
       try {
@@ -55,8 +48,6 @@ export default function App() {
     setPresets(data);
   };
 
-  // --- HANDLERS ---
-
   const handleCreateNew = () => {
     setEditData({ ...INITIAL_PRESET, id: uuidv4(), createdAt: Date.now() });
     setView('EDITOR');
@@ -65,10 +56,6 @@ export default function App() {
   const handleEdit = (preset: Preset) => {
     setEditData(preset);
     setView('EDITOR');
-  };
-
-  const confirmDelete = () => {
-    setIsDeleteModalOpen(true);
   };
 
   const handleDelete = async () => {
@@ -97,12 +84,8 @@ export default function App() {
     );
   }
 
-  // --- RENDERERS ---
-
   return (
     <div className="min-h-screen bg-white text-black font-sans selection:bg-black selection:text-white overflow-hidden relative">
-      
-      {/* BACKGROUND (Optional subtle texture) */}
       <div className="absolute inset-0 bg-[#fafafa] -z-10"></div>
 
       {view === 'DASHBOARD' && (
@@ -120,11 +103,10 @@ export default function App() {
           onChange={setEditData} 
           onSave={handleSave} 
           onCancel={() => setView('DASHBOARD')}
-          onDelete={confirmDelete}
+          onDelete={() => setIsDeleteModalOpen(true)}
         />
       )}
 
-      {/* SESSION VIEW with Slide-Up Transition */}
       {view === 'SESSION' && (
         <div className="fixed inset-0 z-50 animate-slide-up">
           <LiveSession 
@@ -147,16 +129,11 @@ export default function App() {
   );
 }
 
-// --- SUB-COMPONENTS ---
-
 function Dashboard({ presets, onCreate, onEdit, onStart }: any) {
   return (
     <div className="h-screen flex flex-col p-6 md:p-12 animate-fade-in relative overflow-y-auto">
       <header className="mb-12 flex flex-col items-center justify-center">
-         {/* Main Title - English */}
          <h1 className="font-display text-5xl md:text-6xl tracking-wider text-black border-b-2 border-black pb-2 mb-3">Ohanashi</h1>
-         
-         {/* Community Credit Link */}
          <a 
            href="https://philiaspace.com" 
            target="_blank" 
@@ -164,18 +141,9 @@ function Dashboard({ presets, onCreate, onEdit, onStart }: any) {
            className="group flex items-center gap-1.5 text-[10px] uppercase tracking-[0.15em] text-gray-400 hover:text-black transition-colors duration-300 font-mono"
          >
            <span>Dibuat oleh Philia Space Community</span>
-           <svg 
-             className="w-3 h-3 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" 
-             fill="none" 
-             stroke="currentColor" 
-             viewBox="0 0 24 24"
-           >
-             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-           </svg>
          </a>
       </header>
 
-      {/* GRID LAYOUT CONTAINER (Replaces the List Box) */}
       <div className="flex-1 w-full max-w-6xl mx-auto">
         {presets.length === 0 ? (
           <div className="text-center text-gray-400 mt-20 font-serif italic">
@@ -188,35 +156,29 @@ function Dashboard({ presets, onCreate, onEdit, onStart }: any) {
                 key={p.id} 
                 className="group relative bg-white border border-gray-200 p-6 rounded-2xl transition-all duration-300 hover:shadow-xl hover:border-black/20 flex flex-col justify-between min-h-[220px]"
               >
-                 {/* Card Header */}
                  <div>
                     <div className="flex justify-between items-start mb-2">
                         <h3 className="font-serif text-2xl font-medium text-black group-hover:text-black">{p.name}</h3>
                         {p.advancedModeEnabled && <SparklesIcon />}
                     </div>
                     <p className="text-sm text-gray-400 font-mono mb-6 uppercase tracking-wider">{p.language} • {p.voice}</p>
-                    
                     <div className="text-xs text-gray-500 line-clamp-2 italic font-serif">
                        "{p.systemInstruction ? p.systemInstruction.slice(0, 60) + '...' : 'System default behavior.'}"
                     </div>
                  </div>
 
-                 {/* Card Actions */}
                  <div className="mt-8 flex items-center gap-3">
                     <button 
                        onClick={() => onStart(p)}
-                       className="flex-1 bg-black text-white py-3 rounded-lg font-medium text-sm uppercase tracking-widest hover:bg-gray-800 active:scale-95 transition-all shadow-md group-hover:shadow-lg flex items-center justify-center gap-2"
+                       className="flex-1 bg-black text-white py-3 rounded-lg font-medium text-sm uppercase tracking-widest hover:bg-gray-800 active:scale-95 transition-all shadow-md flex items-center justify-center gap-2"
                     >
                        <span>Start Talking</span>
-                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
                     </button>
-                    
                     <button 
                        onClick={() => onEdit(p)}
                        className="p-3 text-gray-400 hover:text-black border border-transparent hover:border-gray-200 rounded-lg transition-all"
-                       title="Edit Configuration"
                     >
-                       <EditIcon />
+                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                     </button>
                  </div>
               </div>
@@ -225,10 +187,7 @@ function Dashboard({ presets, onCreate, onEdit, onStart }: any) {
         )}
       </div>
 
-      <button 
-        onClick={onCreate}
-        className="fixed bottom-8 right-8 w-16 h-16 bg-black text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-105 transition-transform z-20"
-      >
+      <button onClick={onCreate} className="fixed bottom-8 right-8 w-16 h-16 bg-black text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-105 transition-transform z-20">
         <PlusIcon />
       </button>
     </div>
@@ -248,52 +207,28 @@ function Editor({ data, onChange, onSave, onCancel, onDelete }: any) {
         <button onClick={onDelete} className="text-red-500 hover:text-red-600 transition-colors"><TrashIcon /></button>
       </header>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-6 space-y-8">
-          
-          {/* Basic Info */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-8">
           <div className="space-y-4">
             <div>
               <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1">Preset Name</label>
-              <input 
-                type="text" 
-                value={data.name} 
-                onChange={e => update('name', e.target.value)}
-                className="w-full text-2xl font-serif border-b border-gray-300 focus:border-black outline-none py-2 bg-transparent placeholder-gray-300"
-                placeholder="My Assistant"
-              />
+              <input type="text" value={data.name} onChange={e => update('name', e.target.value)} className="w-full text-2xl font-serif border-b border-gray-300 focus:border-black outline-none py-2 bg-transparent" placeholder="My Assistant" />
             </div>
             <div>
-              <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1">AI Name (Persona)</label>
-              <input 
-                type="text" 
-                value={data.aiName} 
-                onChange={e => update('aiName', e.target.value)}
-                className="w-full text-lg border-b border-gray-300 focus:border-black outline-none py-1 bg-transparent"
-                placeholder="e.g. Jarvis"
-              />
+              <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1">AI Name</label>
+              <input type="text" value={data.aiName} onChange={e => update('aiName', e.target.value)} className="w-full text-lg border-b border-gray-300 focus:border-black outline-none py-1 bg-transparent" placeholder="Persona Name" />
             </div>
           </div>
 
-          {/* Settings */}
           <div className="grid grid-cols-2 gap-6">
             <div>
-              <label className="block text-xs uppercase tracking-wider text-gray-500 mb-2">Voice Model</label>
-              <select 
-                value={data.voice} 
-                onChange={e => update('voice', e.target.value)}
-                className="w-full p-2 bg-gray-50 rounded-lg border-none focus:ring-1 focus:ring-black"
-              >
+              <label className="block text-xs uppercase tracking-wider text-gray-500 mb-2">Voice</label>
+              <select value={data.voice} onChange={e => update('voice', e.target.value)} className="w-full p-2 bg-gray-50 rounded-lg border-none">
                 {Object.values(VoiceModel).map(v => <option key={v} value={v}>{v}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs uppercase tracking-wider text-gray-500 mb-2">Language Lock</label>
-              <select 
-                value={data.language} 
-                onChange={e => update('language', e.target.value)}
-                className="w-full p-2 bg-gray-50 rounded-lg border-none focus:ring-1 focus:ring-black"
-              >
+              <label className="block text-xs uppercase tracking-wider text-gray-500 mb-2">Language</label>
+              <select value={data.language} onChange={e => update('language', e.target.value)} className="w-full p-2 bg-gray-50 rounded-lg border-none">
                 {Object.values(SupportedLanguage).map(l => <option key={l} value={l}>{l}</option>)}
               </select>
             </div>
@@ -301,60 +236,26 @@ function Editor({ data, onChange, onSave, onCancel, onDelete }: any) {
 
           <div>
              <label className="block text-xs uppercase tracking-wider text-gray-500 mb-2">System Instruction</label>
-             <textarea 
-               value={data.systemInstruction}
-               onChange={e => update('systemInstruction', e.target.value)}
-               className="w-full h-32 p-3 bg-gray-50 rounded-lg border-none focus:ring-1 focus:ring-black resize-none text-sm"
-               placeholder="Define the behavior..."
-             />
+             <textarea value={data.systemInstruction} onChange={e => update('systemInstruction', e.target.value)} className="w-full h-32 p-3 bg-gray-50 rounded-lg border-none resize-none text-sm" placeholder="Define behavior..." />
           </div>
 
-          <div>
-            <div className="flex justify-between mb-2">
-              <label className="text-xs uppercase tracking-wider text-gray-500">Temperature</label>
-              <span className="text-xs font-mono">{data.temperature}</span>
+          <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+            <div>
+              <h3 className="font-serif text-lg">Advanced Mode</h3>
+              <p className="text-xs text-gray-400">Deep acoustic control</p>
             </div>
-            <input 
-              type="range" min="0" max="2" step="0.1"
-              value={data.temperature}
-              onChange={e => update('temperature', parseFloat(e.target.value))}
-              className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-black"
-            />
+            <button onClick={() => update('advancedModeEnabled', !data.advancedModeEnabled)} className={`w-12 h-6 rounded-full relative transition-colors ${data.advancedModeEnabled ? 'bg-black' : 'bg-gray-200'}`}>
+              <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${data.advancedModeEnabled ? 'translate-x-6' : ''}`} />
+            </button>
           </div>
 
-          {/* Advanced Toggle */}
-          <div className="pt-4 border-t border-gray-100">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="font-serif text-lg">Advanced Mode</h3>
-                <p className="text-xs text-gray-400">Deep acoustic & linguistic control</p>
-              </div>
-              <button 
-                onClick={() => update('advancedModeEnabled', !data.advancedModeEnabled)}
-                className={`w-12 h-6 rounded-full relative transition-colors duration-300 ${data.advancedModeEnabled ? 'bg-black' : 'bg-gray-200'}`}
-              >
-                <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ${data.advancedModeEnabled ? 'translate-x-6' : ''}`} />
-              </button>
-            </div>
-
-            {data.advancedModeEnabled && (
-              <AdvancedEditor 
-                settings={data.advancedSettings} 
-                onChange={(s: any) => update('advancedSettings', s)} 
-              />
-            )}
-          </div>
-
-        </div>
+          {data.advancedModeEnabled && (
+            <AdvancedEditor settings={data.advancedSettings} onChange={(s: any) => update('advancedSettings', s)} />
+          )}
       </div>
 
       <div className="p-6 border-t border-gray-100">
-        <button 
-          onClick={onSave}
-          className="w-full py-4 bg-black text-white font-medium uppercase tracking-widest text-sm hover:bg-gray-900 transition-colors rounded-none"
-        >
-          Save Configuration
-        </button>
+        <button onClick={onSave} className="w-full py-4 bg-black text-white font-medium uppercase tracking-widest text-sm hover:bg-gray-900 transition-colors">Save Configuration</button>
       </div>
     </div>
   );
@@ -363,373 +264,278 @@ function Editor({ data, onChange, onSave, onCancel, onDelete }: any) {
 function LiveSession({ preset, onClose }: { preset: Preset, onClose: () => void }) {
   const [status, setStatus] = useState<SessionStatus>('CONNECTING');
   const [error, setError] = useState<string | null>(null);
-  const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
+  const [outputAnalyser, setOutputAnalyser] = useState<AnalyserNode | null>(null);
+  const [inputAnalyser, setInputAnalyser] = useState<AnalyserNode | null>(null);
+  const [silenceDuration, setSilenceDuration] = useState<number>(0);
   
   const loggerRef = useRef<SessionLogger | null>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
-  const retryCountRef = useRef(0);
-  const MAX_RETRIES = 5; 
   const isConnectedRef = useRef(false);
-
-  // Time-Scheduled Playback State
   const nextStartTimeRef = useRef<number>(0);
   const activeSourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
   const activeSourceCountRef = useRef(0); 
-  
-  // Wake Lock Ref
+  const micMutedRef = useRef(false);
   const wakeLockRef = useRef<any>(null);
+  const thinkingTimeoutRef = useRef<any>(null);
+  const lastVoiceActivityRef = useRef<number>(0);
 
-  // Helper to sync state changes with logger
   const updateStatus = (newStatus: SessionStatus) => {
     setStatus(newStatus);
     loggerRef.current?.logStateChange(newStatus);
   };
-
+  
   useEffect(() => {
     loggerRef.current = new SessionLogger();
-    loggerRef.current.addLog('INFO', `Initializing Session for: ${preset.name}`);
-    retryCountRef.current = 0;
-    isConnectedRef.current = false;
-    nextStartTimeRef.current = 0;
-    activeSourcesRef.current = new Set();
-    activeSourceCountRef.current = 0;
-
     let active = true;
 
-    // --- WAKE LOCK (PREVENT ERROR 1006 ON MOBILE) ---
     const requestWakeLock = async () => {
-      try {
-        if ('wakeLock' in navigator) {
-          wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
-          loggerRef.current?.addLog('INFO', 'Screen Wake Lock active');
-        }
-      } catch (err) {
-        loggerRef.current?.addLog('INFO', 'Wake Lock skipped/failed');
-      }
+      try { if ('wakeLock' in navigator) wakeLockRef.current = await (navigator as any).wakeLock.request('screen'); } catch (err) {}
     };
     requestWakeLock();
 
-    // Re-acquire wake lock if visibility changes
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && !wakeLockRef.current && active) {
-        requestWakeLock();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
     const cleanUpResources = () => {
        isConnectedRef.current = false;
-       if (wakeLockRef.current) {
-         wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
-       }
-       if (cleanupRef.current) {
-          cleanupRef.current();
-          cleanupRef.current = null;
-       }
+       if (wakeLockRef.current) wakeLockRef.current.release().then(() => wakeLockRef.current = null).catch(() => {});
+       if (thinkingTimeoutRef.current) clearTimeout(thinkingTimeoutRef.current);
+       if (cleanupRef.current) { cleanupRef.current(); cleanupRef.current = null; }
     };
 
     const stopAllAudio = () => {
-       activeSourcesRef.current.forEach(source => {
-           try { source.stop(); } catch(e) {}
-       });
+       activeSourcesRef.current.forEach(source => { try { source.stop(); } catch(e) {} });
        activeSourcesRef.current.clear();
        activeSourceCountRef.current = 0;
        nextStartTimeRef.current = 0;
+       micMutedRef.current = false; 
+       lastVoiceActivityRef.current = Date.now();
+       setSilenceDuration(0);
        if (active) updateStatus('LISTENING');
     };
 
     const startSession = async () => {
       if (!active) return;
-      
-      let inputAudioContext: AudioContext | null = null;
-      let outputAudioContext: AudioContext | null = null;
-      let stream: MediaStream | null = null;
-      let sessionPromise: Promise<any> | null = null;
-      
       cleanUpResources();
 
       try {
         const apiKey = process.env.API_KEY;
-        if (!apiKey) {
-          throw new Error("API Key missing. Check Vercel Env Vars.");
-        }
+        if (!apiKey) throw new Error("API Key missing.");
 
         const ai = new GoogleGenAI({ apiKey });
-        loggerRef.current?.logConnectionAttempt();
-        
-        // --- AUDIO SETUP ---
-        inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-        outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-        
-        await Promise.all([inputAudioContext.resume(), outputAudioContext.resume()]);
+        const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+        const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+        await Promise.all([inputCtx.resume(), outputCtx.resume()]);
 
-        const analyserNode = outputAudioContext.createAnalyser();
-        analyserNode.fftSize = 64;
-        setAnalyser(analyserNode);
+        // Output Path (AI Voice)
+        const outAnalyser = outputCtx.createAnalyser();
+        outAnalyser.fftSize = 256;
+        const outGain = outputCtx.createGain();
+        outGain.gain.value = 0.8; 
+        outGain.connect(outAnalyser);
+        outAnalyser.connect(outputCtx.destination);
+        setOutputAnalyser(outAnalyser);
 
-        const outputNode = outputAudioContext.createGain();
-        outputNode.connect(analyserNode);
-        analyserNode.connect(outputAudioContext.destination);
+        // Input Path (User Voice)
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const micSource = inputCtx.createMediaStreamSource(stream);
+        const inAnalyser = inputCtx.createAnalyser();
+        inAnalyser.fftSize = 256;
+        // CRITICAL: Connect micSource to inAnalyser DIRECTLY so visualizer sees raw mic even when we send silence to AI
+        micSource.connect(inAnalyser);
+        setInputAnalyser(inAnalyser);
 
-        // --- INPUT SETUP (BUFFERING) ---
-        stream = await navigator.mediaDevices.getUserMedia({ 
-            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-        });
-        
-        const source = inputAudioContext.createMediaStreamSource(stream);
-        // REDUCED BUFFER SIZE: 2048 samples @ 16kHz = ~128ms latency
-        const scriptProcessor = inputAudioContext.createScriptProcessor(2048, 1, 1);
-        
-        const inputSampleRate = inputAudioContext.sampleRate;
+        const scriptProcessor = inputCtx.createScriptProcessor(4096, 1, 1);
         const systemInstruction = buildSystemInstruction(preset);
         
-        sessionPromise = ai.live.connect({
+        const sessionPromise = ai.live.connect({
           model: 'gemini-2.5-flash-native-audio-preview-09-2025', 
           callbacks: {
             onopen: () => {
               if (!active) return;
-              loggerRef.current?.logConnectionOpen();
               updateStatus('LISTENING');
-              setError(null);
-              retryCountRef.current = 0; 
               isConnectedRef.current = true;
-              
-              // Reset Output Timing
-              nextStartTimeRef.current = outputAudioContext!.currentTime;
+              lastVoiceActivityRef.current = Date.now();
+              nextStartTimeRef.current = outputCtx.currentTime;
 
               scriptProcessor.onaudioprocess = (e) => {
-                 // HALF-DUPLEX LOGIC WITH SILENCE HEARTBEAT:
                  if (!active || !isConnectedRef.current) return;
-                 
                  const inputData = e.inputBuffer.getChannelData(0);
                  
-                 let chunk: Float32Array;
-                 let isSilence = false;
-
-                 if (activeSourceCountRef.current > 0) {
-                     // AI IS SPEAKING: Send SILENCE (Heartbeat) to keep connection alive.
-                     // EFFECTIVELY MUTES THE USER
-                     chunk = new Float32Array(inputData.length).fill(0);
-                     isSilence = true;
-                 } else {
-                     // AI IS LISTENING: Send actual microphone data.
-                     chunk = new Float32Array(inputData);
-                 }
-
-                 const pcmBlob = createPcmBlob(chunk, inputSampleRate);
+                 // REAL-TIME SAFETY LOGIC (Half-Duplex enforcement)
+                 // If AI is speaking (activeSourceCountRef > 0) OR thinking (micMutedRef) -> SEND SILENCE
+                 const isAiSpeaking = activeSourceCountRef.current > 0;
+                 const isMuted = micMutedRef.current;
                  
-                 sessionPromise?.then(session => {
-                    // Log Send Operation with Size
-                    loggerRef.current?.logAudioSend(pcmBlob.data.length, isSilence);
-                    session.sendRealtimeInput({ media: pcmBlob });
-                 }).catch(e => {});
+                 const chunk = (isAiSpeaking || isMuted) 
+                    ? new Float32Array(inputData.length).fill(0) 
+                    : new Float32Array(inputData);
+                 
+                 const pcmBlob = createPcmBlob(chunk, 16000);
+                 sessionPromise?.then(s => s.sendRealtimeInput({ media: pcmBlob })).catch(() => {});
               };
-              source.connect(scriptProcessor);
-              scriptProcessor.connect(inputAudioContext!.destination);
+              micSource.connect(scriptProcessor);
+              scriptProcessor.connect(inputCtx.destination);
             },
             onmessage: async (msg: LiveServerMessage) => {
-              if (!active) return;
-              
               const base64Audio = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
-              if (base64Audio && outputAudioContext) {
-                // Log Receive
-                loggerRef.current?.logAudioReceive(base64Audio.length);
-
+              if (base64Audio && active) {
+                if (thinkingTimeoutRef.current) clearTimeout(thinkingTimeoutRef.current);
                 try {
-                  const audioBuffer = await decodeAudioData(
-                    base64ToUint8Array(base64Audio),
-                    outputAudioContext
-                  );
-                  
-                  // --- TIME SCHEDULING (CRITICAL FOR SMOOTH AUDIO) ---
-                  const currentTime = outputAudioContext.currentTime;
-                  
-                  // If we fell behind, reset cursor to now.
-                  if (nextStartTimeRef.current < currentTime) {
-                      nextStartTimeRef.current = currentTime;
-                  }
-                  
-                  const source = outputAudioContext.createBufferSource();
+                  const audioBuffer = await decodeAudioData(base64ToUint8Array(base64Audio), outputCtx);
+                  const currentTime = outputCtx.currentTime;
+                  if (nextStartTimeRef.current < currentTime) nextStartTimeRef.current = currentTime;
+                  const source = outputCtx.createBufferSource();
                   source.buffer = audioBuffer;
-                  source.connect(outputNode);
-                  
+                  source.connect(outGain);
                   source.start(nextStartTimeRef.current);
-                  
-                  // Register Source
                   activeSourcesRef.current.add(source);
                   activeSourceCountRef.current++;
                   updateStatus('SPEAKING'); 
-
-                  // Advance cursor
                   nextStartTimeRef.current += audioBuffer.duration;
-
                   source.onended = () => {
                       activeSourcesRef.current.delete(source);
                       activeSourceCountRef.current--;
                       if (activeSourceCountRef.current === 0 && active) {
+                          micMutedRef.current = false;
+                          lastVoiceActivityRef.current = Date.now();
+                          setSilenceDuration(0);
                           updateStatus('LISTENING');
                       }
                   };
-
-                } catch (decodeErr: any) {
-                   loggerRef.current?.addLog('ERROR', 'Audio Decode Failure', decodeErr);
-                }
+                } catch (e) {}
               }
-
-              if (msg.serverContent?.interrupted) {
-                loggerRef.current?.addLog('INTERRUPT', 'Interruption Signal Received');
-                stopAllAudio();
-                if (outputAudioContext) {
-                    nextStartTimeRef.current = outputAudioContext.currentTime;
-                }
-              }
+              if (msg.serverContent?.interrupted) stopAllAudio();
             },
-            onclose: (e) => {
-               if (!active) return;
-               isConnectedRef.current = false;
-               
-               // ENHANCED ERROR LOGGING
-               loggerRef.current?.logErrorContext(e, e.code);
-               
-               if (retryCountRef.current < MAX_RETRIES) {
-                   updateStatus('RECONNECTING');
-                   retryCountRef.current += 1;
-                   setTimeout(() => { if (active) startSession(); }, 500);
-               } else {
-                   updateStatus('ERROR');
-                   setError("Connection lost.");
-               }
-            },
-            onerror: (err: any) => {
-               loggerRef.current?.logErrorContext(err);
-            }
+            onclose: () => { isConnectedRef.current = false; if (active) setStatus('ERROR'); },
+            onerror: (e) => console.error(e)
           },
           config: {
             responseModalities: [Modality.AUDIO],
-            speechConfig: {
-              voiceConfig: { prebuiltVoiceConfig: { voiceName: preset.voice } }
-            },
+            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: preset.voice } } },
             systemInstruction: systemInstruction,
-            generationConfig: {
-              temperature: preset.temperature,
-              topP: 0.95,
-              maxOutputTokens: 2048,
-            }
+            generationConfig: { temperature: preset.temperature }
           }
         });
 
         cleanupRef.current = () => {
            isConnectedRef.current = false;
-           if(stream) stream.getTracks().forEach(t => t.stop());
-           
-           if(source) try { source.disconnect(); } catch {}
-           if(scriptProcessor) try { scriptProcessor.disconnect(); } catch {}
-           
-           if(inputAudioContext && inputAudioContext.state !== 'closed') inputAudioContext.close();
-           if(outputAudioContext && outputAudioContext.state !== 'closed') outputAudioContext.close();
-           
-           if(sessionPromise) sessionPromise.then(s => s.close()).catch(() => {});
-           
-           stopAllAudio();
+           stream.getTracks().forEach(t => t.stop());
+           if(inputCtx.state !== 'closed') inputCtx.close();
+           if(outputCtx.state !== 'closed') outputCtx.close();
+           sessionPromise.then(s => s.close()).catch(() => {});
         };
-
       } catch (e: any) {
-        if (active) {
-            updateStatus('ERROR');
-            setError(e.message || "Failed to start session");
-        }
+        if (active) { updateStatus('ERROR'); setError(e.message); }
       }
     };
-
     startSession();
-
-    return () => {
-      active = false;
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      cleanUpResources();
-    };
+    return () => { active = false; cleanUpResources(); };
   }, [preset]);
 
-  const downloadLog = () => { loggerRef.current?.download(); };
-  const getStatusText = () => {
-      switch(status) {
-          case 'CONNECTING': return "Connecting...";
-          case 'LISTENING': return "Your Turn";
-          case 'SPEAKING': return `Listen to ${preset.aiName}...`; 
-          case 'RECONNECTING': return "Reconnecting...";
-          case 'ERROR': return "Connection Failed";
-          default: return "";
+  // VAD Effect (Now tracking even during processing to show mic activity)
+  useEffect(() => {
+    if (!inputAnalyser || (status !== 'LISTENING' && status !== 'PROCESSING' && status !== 'SPEAKING')) return;
+    
+    const vadInterval = setInterval(() => {
+      const data = new Uint8Array(inputAnalyser.frequencyBinCount);
+      inputAnalyser.getByteFrequencyData(data);
+      let sum = 0;
+      for(let i = 0; i < data.length; i++) sum += data[i];
+      const avg = sum / data.length;
+      
+      if (avg > 20) {
+          lastVoiceActivityRef.current = Date.now();
+          setSilenceDuration(0);
+      } else {
+          // Silence tracking only active during LISTENING
+          if (status === 'LISTENING') {
+              const sil = Date.now() - lastVoiceActivityRef.current;
+              setSilenceDuration(sil);
+              if (sil > 8000) handleUserFinished();
+          }
       }
-  }
+    }, 100);
+    
+    return () => clearInterval(vadInterval);
+  }, [inputAnalyser, status]);
+
+  const handleUserFinished = () => {
+      if (status !== 'LISTENING') return;
+      micMutedRef.current = true;
+      setSilenceDuration(0);
+      updateStatus('PROCESSING');
+      
+      if (thinkingTimeoutRef.current) clearTimeout(thinkingTimeoutRef.current);
+      thinkingTimeoutRef.current = setTimeout(() => {
+          micMutedRef.current = false;
+          lastVoiceActivityRef.current = Date.now();
+          if (status === 'PROCESSING') updateStatus('LISTENING');
+      }, 10000); 
+  };
 
   return (
-    <div className="h-screen w-full bg-black text-white flex flex-col items-center justify-center p-8 relative overflow-hidden">
-      <div className="absolute inset-0 opacity-10 pointer-events-none">
-         <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full blur-[100px] -translate-x-1/2 -translate-y-1/2"></div>
-         <div className="absolute bottom-0 right-0 w-64 h-64 bg-white rounded-full blur-[100px] translate-x-1/2 translate-y-1/2"></div>
-      </div>
-
-      <header className="absolute top-0 left-0 w-full flex justify-between items-center p-8 z-50">
-         <button onClick={onClose} className="text-white/50 hover:text-white transition-colors">
+    <div className="h-screen w-full bg-black text-white flex flex-col items-center p-8 relative overflow-hidden font-sans">
+      <header className="w-full flex justify-between items-center z-50">
+         <button onClick={onClose} className="text-white/40 hover:text-white transition-colors p-2">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" /></svg>
          </button>
-         <span className="font-mono text-xs tracking-[0.2em] text-white/50 uppercase">{preset.language} MODE</span>
-         <div className="flex items-center space-x-3">
-             <button onClick={downloadLog} className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 text-white/70 text-[10px] uppercase tracking-widest border border-white/10 backdrop-blur-sm">LOG</button>
-             
-             {/* Status Dot */}
-             <div className={`w-2 h-2 rounded-full transition-all duration-300
-               ${status === 'LISTENING' ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)]' : 
-                 status === 'SPEAKING' ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]' : 
-                 status === 'RECONNECTING' ? 'bg-yellow-500 animate-ping' : 'bg-red-500'}`} 
-             />
+         <div className="flex flex-col items-center">
+            <h2 className="font-display text-2xl tracking-widest">{preset.aiName}</h2>
+            <div className={`mt-1 h-1 w-1 rounded-full ${status === 'LISTENING' ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : status === 'SPEAKING' ? 'bg-red-500 shadow-[0_0_8px_#ef4444]' : 'bg-blue-500 animate-pulse'}`}></div>
          </div>
+         <span className="text-[10px] font-mono opacity-30 uppercase tracking-[0.2em]">{preset.language}</span>
       </header>
 
-      <main className="flex-1 flex flex-col items-center justify-center w-full z-10 space-y-12">
-         <div className="text-center cursor-pointer group p-4 rounded-2xl hover:bg-white/5 transition-all select-none flex flex-col items-center space-y-6" onClick={downloadLog}>
-            <h2 className="font-display text-4xl md:text-5xl group-hover:text-white transition-colors">{preset.aiName}</h2>
+      <main className="flex-1 flex flex-col items-center justify-center w-full max-w-lg space-y-12">
+         {/* VISUALIZER CONTAINER */}
+         <div className="w-full h-56 relative flex flex-col items-center group">
+            <Visualizer outputAnalyser={outputAnalyser} inputAnalyser={inputAnalyser} isActive={true} />
             
-            {/* MIC STATUS INDICATOR */}
-            <div className={`flex items-center gap-3 px-6 py-3 rounded-full border backdrop-blur-md transition-all duration-500 ${
-                status === 'SPEAKING' 
-                    ? 'bg-red-500/10 border-red-500/30 text-red-400 shadow-[0_0_20px_rgba(239,68,68,0.2)]' 
-                    : status === 'LISTENING'
-                        ? 'bg-green-500/10 border-green-500/30 text-green-400 shadow-[0_0_20px_rgba(34,197,94,0.2)]'
-                        : 'bg-white/5 border-white/10 text-white/50'
-            }`}>
-                {status === 'SPEAKING' ? (
-                    <>
-                        <MicOffIcon />
-                        <span className="text-sm font-bold tracking-[0.2em] uppercase">Mic Locked</span>
-                    </>
-                ) : status === 'LISTENING' ? (
-                    <>
-                         <MicOnIcon />
-                        <span className="text-sm font-bold tracking-[0.2em] uppercase">Your Turn</span>
-                    </>
-                ) : (
-                    <span className="text-sm font-bold tracking-[0.2em] uppercase">{getStatusText()}</span>
-                )}
-            </div>
+            {/* Reassurance text for Half-Duplex state */}
+            {status === 'SPEAKING' && (
+                <div className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 border border-white/5 backdrop-blur-md animate-fade-in">
+                    <MicOffIcon />
+                    <span className="text-[10px] font-mono font-bold text-white/40 tracking-widest uppercase">Mic Muted (AI Talking)</span>
+                </div>
+            )}
+
+            {/* Silence Warning Overlay */}
+            {status === 'LISTENING' && silenceDuration > 5000 && (
+                <div className="absolute -bottom-8 text-[11px] font-mono uppercase tracking-[0.4em] text-yellow-400 animate-fade-in text-center w-full font-bold">
+                    Silence... Auto-stop in {((8000 - silenceDuration) / 1000).toFixed(1)}s
+                </div>
+            )}
          </div>
 
-         {error && (
-            <div className="p-4 bg-red-900/50 border border-red-500/50 rounded-lg text-red-200 text-sm max-w-xs text-center animate-pulse">
-               {error}
-            </div>
-         )}
-
-         <div className="w-full max-w-sm h-32 flex items-center justify-center relative">
-             <Visualizer analyser={analyser} isActive={status === 'SPEAKING' || status === 'LISTENING'} />
+         {/* INTERACTION AREA */}
+         <div className="h-24 flex flex-col items-center justify-center w-full relative">
+            {(status === 'LISTENING' || status === 'PROCESSING') ? (
+                <div className="flex flex-col items-center space-y-4 animate-fade-in">
+                    <button 
+                        onClick={handleUserFinished}
+                        disabled={status === 'PROCESSING'}
+                        className={`group flex flex-col items-center space-y-3 focus:outline-none transition-all duration-500 ${status === 'PROCESSING' ? 'opacity-50 grayscale scale-90 cursor-default' : 'opacity-100 cursor-pointer'}`}
+                    >
+                        <div className="w-20 h-20 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white transition-all duration-300 flex items-center justify-center group-active:scale-95 shadow-2xl">
+                            {status === 'PROCESSING' ? (
+                                <div className="w-4 h-4 bg-blue-500 rounded-full animate-ping"></div>
+                            ) : (
+                                <SquareIcon />
+                            )}
+                        </div>
+                        <span className="text-[11px] font-bold uppercase tracking-[0.4em] text-white/30 group-hover:text-white transition-colors">
+                            {status === 'PROCESSING' ? 'Thinking...' : 'Stop & Send'}
+                        </span>
+                    </button>
+                </div>
+            ) : status === 'SPEAKING' ? (
+                <div className="flex flex-col items-center space-y-3 animate-fade-in">
+                     <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_15px_#ef4444]"></div>
+                     <span className="text-[11px] font-mono uppercase tracking-[0.4em] text-white/50">{preset.aiName} is speaking...</span>
+                </div>
+            ) : null}
          </div>
       </main>
 
-      <footer className="absolute bottom-0 w-full flex justify-center pb-8 z-10 items-center space-x-6">
-         <button onClick={onClose} className="w-16 h-16 rounded-full bg-white/10 hover:bg-red-500/20 border border-white/20 hover:border-red-500 text-white transition-all flex items-center justify-center backdrop-blur-md">
-            <StopIcon />
-         </button>
-      </footer>
+      {error && <div className="absolute bottom-10 px-6 py-3 bg-red-900/60 border border-red-500/50 rounded-full text-xs text-red-100 backdrop-blur-md animate-fade-in shadow-2xl">{error}</div>}
     </div>
   );
 }
