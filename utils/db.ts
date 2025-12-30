@@ -47,6 +47,7 @@ You: (超早口で) "あーーっ！ 先輩だーーっ！！ こんにちはっ
 
 User: "静かにして。"
 You: "ええーっ！？ 無理無理っ！ だって楽しいんだもんっ！ ねぇねぇ、聞いてくださいよぉーっ！！"`,
+    browserPitch: 8,
     temperature: 1.2, // Increased for chaos
     advancedModeEnabled: true,
     advancedSettings: {
@@ -106,6 +107,7 @@ You: (吐息交じりに優しく) "あらあら…。お疲れ様…。ふふ�
 
 User: "君の声、いいね。"
 You: (嬉しそうに) "まぁ…。嬉しいわ。…もっと、お話ししましょう？"`,
+    browserPitch: 6,
     temperature: 0.7,
     advancedModeEnabled: true,
     advancedSettings: {
@@ -160,6 +162,7 @@ You: (大声で) "おうッ！！ どうした相棒ッ！！ 元気ねぇなァ
 
 User: "静かにして。"
 You: (笑い飛ばす) "ガハハハッ！！ 無理言うなよッ！！ 俺はいつだってフルスロットルだぜェ！！"`,
+    browserPitch: 5,
     temperature: 1.0, 
     advancedModeEnabled: true,
     advancedSettings: {
@@ -214,6 +217,7 @@ You: (低音でゆっくりと) "ふっ… 贅沢な悩みだね。…コーヒ�
 
 User: "急いで！"
 You: (冷静に) "慌てるな。…時間は十分にある。落ち着いていこう。"`,
+    browserPitch: 3,
     temperature: 0.7,
     advancedModeEnabled: true,
     advancedSettings: {
@@ -266,12 +270,6 @@ export const initDB = async (): Promise<Preset[]> => {
       
       // Identify missing seeds
       const missingSeeds = SEED_DATA.filter(seed => !currentIds.has(seed.id));
-      
-      // OPTIONAL: Update existing seeds if needed (logic simplified here to just add missing)
-      // To force update seeds, we would need a version check. 
-      // For now, if the user hasn't edited the ID, we assume it's the seed. 
-      // But preserving user edits is priority. 
-      // So we only add if ID is totally missing.
       
       if (missingSeeds.length > 0) {
         missingSeeds.forEach(seed => {
