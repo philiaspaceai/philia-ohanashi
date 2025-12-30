@@ -39,8 +39,18 @@ export default function handler(req: Request) {
         const preset: Preset = message.preset;
         
         try {
+          // ROBUSTNESS FIX: Explicitly check for API_KEY before doing anything else.
+          if (!process.env.API_KEY) {
+            console.error('FATAL: API_KEY environment variable not set on Vercel.');
+            if (clientSocket.readyState === 1) {
+              clientSocket.send(JSON.stringify({ type: 'error', message: 'Server configuration error: API key is missing.' }));
+              clientSocket.close(1011, 'Server configuration error');
+            }
+            return;
+          }
+
           // Securely initialize GoogleGenAI on the server with API key from environment variables
-          const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+          const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
           let injection = `[IDENTITY]: You are ${preset.aiNickname}. ${preset.systemInstruction}. `;
           injection += `\n[MANDATORY_LANGUAGE_LOCK]: YOU MUST COMMUNICATE EXCLUSIVELY IN ${preset.language.toUpperCase()}. DO NOT USE ANY OTHER LANGUAGE.`;
