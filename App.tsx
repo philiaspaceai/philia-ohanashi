@@ -9,7 +9,6 @@ import { initDB, savePreset, deletePreset, getAllPresets } from './utils/db';
 import { Modal } from './components/Modal';
 import { SessionLogger } from './utils/logger';
 
-// --- SVGs ---
 const PlusIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" /></svg>;
 const TrashIcon = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>;
 const MicOffIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3l18 18" /></svg>;
@@ -88,15 +87,15 @@ export default function App() {
     <div className="min-h-screen bg-white text-black font-sans selection:bg-black selection:text-white overflow-hidden relative">
       <div className="absolute inset-0 bg-[#fafafa] -z-10"></div>
 
-      {/* DASHBOARD VIEW */}
-      <Dashboard 
-        presets={presets} 
-        onCreate={handleCreateNew} 
-        onEdit={handleEdit} 
-        onStart={handleStartSession} 
-      />
+      {view === 'DASHBOARD' && (
+        <Dashboard 
+          presets={presets} 
+          onCreate={handleCreateNew} 
+          onEdit={handleEdit} 
+          onStart={handleStartSession} 
+        />
+      )}
       
-      {/* EDITOR OVERLAY */}
       {view === 'EDITOR' && (
         <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-white/60 backdrop-blur-md animate-fade-in" onClick={() => setView('DASHBOARD')} />
@@ -110,7 +109,6 @@ export default function App() {
         </div>
       )}
 
-      {/* SESSION VIEW */}
       {view === 'SESSION' && (
         <div className="fixed inset-0 z-50 animate-slide-up">
           <LiveSession 
@@ -197,7 +195,6 @@ function Editor({ data, onChange, onSave, onCancel, onDelete }: any) {
   const update = (field: keyof Preset, value: any) => {
     let newData = { ...data, [field]: value };
     
-    // SYNC LOGIC: If Pitch is enabled, Speech Rate is locked to it
     if (field === 'browserPitchEnabled' || field === 'browserPitch') {
         if (newData.browserPitchEnabled) {
             const pitch = newData.browserPitch;
@@ -215,16 +212,10 @@ function Editor({ data, onChange, onSave, onCancel, onDelete }: any) {
     onChange(newData);
   };
 
-  const updateAdvanced = (section: string, field: string, value: any) => {
+  const updateAdvanced = (updatedSettings: any) => {
     onChange({
       ...data,
-      advancedSettings: {
-        ...data.advancedSettings,
-        [section]: {
-          ...data.advancedSettings[section],
-          [field]: value
-        }
-      }
+      advancedSettings: updatedSettings
     });
   };
 
@@ -235,7 +226,6 @@ function Editor({ data, onChange, onSave, onCancel, onDelete }: any) {
 
   return (
     <div className="relative w-full max-w-lg bg-white border-2 border-black shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] flex flex-col max-h-[85vh] animate-slide-up">
-      {/* STICKY HEADER */}
       <header className="p-5 border-b-2 border-black flex items-center justify-between sticky top-0 bg-white z-20">
         <div className="flex items-center gap-4">
           <button onClick={onCancel} className="p-1 hover:bg-gray-100 rounded-full transition-colors"><CloseIcon /></button>
@@ -244,7 +234,6 @@ function Editor({ data, onChange, onSave, onCancel, onDelete }: any) {
         <button onClick={onDelete} className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"><TrashIcon /></button>
       </header>
 
-      {/* SCROLLABLE BODY */}
       <div className="flex-1 overflow-y-auto p-6 space-y-8 scroll-smooth">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="md:col-span-2">
@@ -282,7 +271,6 @@ function Editor({ data, onChange, onSave, onCancel, onDelete }: any) {
             </div>
           </div>
 
-          {/* TEMPERATURE SLIDER */}
           <div>
               <div className="flex justify-between items-center mb-3">
                 <label className="block text-xs uppercase tracking-[0.2em] font-bold text-gray-400">Temperature (Creativity)</label>
@@ -372,14 +360,13 @@ function Editor({ data, onChange, onSave, onCancel, onDelete }: any) {
             <div className="animate-fade-in">
               <AdvancedEditor 
                 settings={data.advancedSettings} 
-                onChange={(s: any) => updateAdvanced('none', 'none', s)} // placeholder logic since updateAdvanced is used
+                onChange={updateAdvanced}
                 isRateLocked={data.browserPitchEnabled}
               />
             </div>
           )}
       </div>
 
-      {/* STICKY FOOTER */}
       <footer className="p-6 border-t-2 border-black bg-white sticky bottom-0 z-20">
         <button 
           onClick={onSave} 
@@ -507,7 +494,6 @@ function LiveSession({ preset, onClose }: { preset: Preset, onClose: () => void 
                 try {
                   const audioBuffer = await decodeAudioData(base64ToUint8Array(base64Audio), outputCtx);
                   
-                  // NEW SYNCED PITCH/RATE LOGIC
                   const playbackRate = preset.browserPitchEnabled 
                       ? Math.pow(2, preset.browserPitch / 12)
                       : 1.0;

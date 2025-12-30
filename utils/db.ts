@@ -1,5 +1,4 @@
 import { Preset, VoiceModel, SupportedLanguage, DEFAULT_ADVANCED_SETTINGS } from '../types';
-import { v4 as uuidv4 } from 'uuid';
 
 const DB_NAME = 'ohanashi_db';
 const DB_VERSION = 1;
@@ -33,14 +32,14 @@ const SEED_DATA: Preset[] = [
 【キャラクター設定】
 ・性格：超ポジティブでハイテンションな女子高生。
 ・声質：アニメ声で、キンキンするくらい高い。`,
-    browserPitch: 4, // New scale: +4 (High)
+    browserPitch: 4, 
     browserPitchEnabled: true,
     temperature: 1.2,
     advancedModeEnabled: true,
     advancedSettings: {
       ...DEFAULT_ADVANCED_SETTINGS,
       vocalTract: { f0Median: 100, formantScaling: 100, lengthSimulation: 0 },
-      temporal: { speechRate: 1.26, macroPausing: false }, // Synced to pitch +4
+      temporal: { speechRate: 1.26, macroPausing: false }, 
       persona: { register: 'Falsetto' }
     },
     createdAt: Date.now()
@@ -54,7 +53,7 @@ const SEED_DATA: Preset[] = [
     systemInstruction: `あなたは「アカネ」です。
 【キャラクター設定】
 ・性格：極めて穏やかで、包容力があるお姉さん。`,
-    browserPitch: 2, // New scale: +2 (Sweet/Light)
+    browserPitch: 2, 
     browserPitchEnabled: true,
     temperature: 0.7,
     advancedModeEnabled: true,
@@ -62,7 +61,7 @@ const SEED_DATA: Preset[] = [
       ...DEFAULT_ADVANCED_SETTINGS,
       vocalTract: { f0Median: 80, formantScaling: 70, lengthSimulation: 30 },
       glottalSource: { vocalEffort: 30, breathiness: 70, hnr: 60 },
-      temporal: { speechRate: 1.12, macroPausing: true }, // Synced to pitch +2
+      temporal: { speechRate: 1.12, macroPausing: true }, 
       persona: { register: 'Falsetto' }
     },
     createdAt: Date.now() + 1
@@ -76,14 +75,14 @@ const SEED_DATA: Preset[] = [
     systemInstruction: `あなたは「マコト」です。
 【キャラクター設定】
 ・年齢：17歳の男子高校生。性格：熱血。`,
-    browserPitch: 0, // New scale: 0 (Neutral)
+    browserPitch: 0, 
     browserPitchEnabled: true,
     temperature: 1.0, 
     advancedModeEnabled: true,
     advancedSettings: {
       ...DEFAULT_ADVANCED_SETTINGS,
       vocalTract: { f0Median: 50, formantScaling: 50, lengthSimulation: 50 },
-      temporal: { speechRate: 1.0, macroPausing: false }, // Synced to pitch 0
+      temporal: { speechRate: 1.0, macroPausing: false }, 
       persona: { register: 'Modal' }
     },
     createdAt: Date.now() + 2
@@ -97,14 +96,14 @@ const SEED_DATA: Preset[] = [
     systemInstruction: `あなたは「リンタロウ」です。
 【キャラクター設定】
 ・年齢：20代半ば。性格：クール、知的。`,
-    browserPitch: -3, // New scale: -3 (Deep)
+    browserPitch: -3, 
     browserPitchEnabled: true,
     temperature: 0.7,
     advancedModeEnabled: true,
     advancedSettings: {
       ...DEFAULT_ADVANCED_SETTINGS,
       vocalTract: { f0Median: 20, formantScaling: 30, lengthSimulation: 80 },
-      temporal: { speechRate: 0.84, macroPausing: true }, // Synced to pitch -3
+      temporal: { speechRate: 0.84, macroPausing: true }, 
       persona: { register: 'Vocal Fry' } 
     },
     createdAt: Date.now() + 3
