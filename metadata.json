@@ -1,0 +1,7 @@
+{
+  "name": "Ohanashi",
+  "description": "An elegant, minimalist AI conversation interface with advanced acoustic modeling.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
