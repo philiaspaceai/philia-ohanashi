@@ -1,57 +1,76 @@
 import React, { useEffect, useRef } from 'react';
 
 interface VisualizerProps {
-  analyser: AnalyserNode | null;
+  outputAnalyser: AnalyserNode | null;
+  inputAnalyser: AnalyserNode | null;
   isActive: boolean;
 }
 
-export const Visualizer: React.FC<VisualizerProps> = ({ analyser, isActive }) => {
+export const Visualizer: React.FC<VisualizerProps> = ({ outputAnalyser, inputAnalyser, isActive }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    if (!canvasRef.current || !analyser || !isActive) return;
+    if (!canvasRef.current || !isActive) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
+    const bufferLength = 128;
+    const aiData = new Uint8Array(bufferLength);
+    const micData = new Uint8Array(bufferLength);
     let animationId: number;
 
     const draw = () => {
       animationId = requestAnimationFrame(draw);
-      analyser.getByteFrequencyData(dataArray);
+      
+      if (outputAnalyser) outputAnalyser.getByteFrequencyData(aiData);
+      if (inputAnalyser) inputAnalyser.getByteFrequencyData(micData);
 
-      ctx.fillStyle = '#ffffff';
+      // Clear with very slight trail for fluid motion
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      const barWidth = (canvas.width / bufferLength) * 2.5;
-      let barHeight;
-      let x = 0;
+      const barWidth = (canvas.width / bufferLength) * 1.5;
+      const centerY = canvas.height / 2;
 
       for (let i = 0; i < bufferLength; i++) {
-        barHeight = dataArray[i] / 1.5;
+        // 1. MIC VOICE (User) - Blue Electric
+        // Render behind AI voice for depth
+        const micHeight = (micData[i] / 255) * centerY * 1.1; // Make user voice slightly taller
+        if (micHeight > 2) {
+          ctx.fillStyle = `rgba(59, 130, 246, ${0.4 + micHeight / 100})`;
+          ctx.fillRect(i * barWidth, centerY - micHeight, barWidth - 1, micHeight * 2);
+        }
 
-        // Elegant black bars
-        ctx.fillStyle = `rgba(10, 10, 10, ${barHeight / 200})`; 
-        ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-
-        x += barWidth + 1;
+        // 2. AI VOICE - Solid White
+        const aiHeight = (aiData[i] / 255) * centerY * 0.9;
+        if (aiHeight > 2) {
+          ctx.fillStyle = `rgba(255, 255, 255, ${0.6 + aiHeight / 100})`;
+          ctx.fillRect(i * barWidth, centerY - aiHeight, barWidth - 1, aiHeight * 2);
+        }
       }
+      
+      // Decorative horizon line
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, centerY);
+      ctx.lineTo(canvas.width, centerY);
+      ctx.stroke();
     };
 
     draw();
 
     return () => cancelAnimationFrame(animationId);
-  }, [analyser, isActive]);
+  }, [outputAnalyser, inputAnalyser, isActive]);
 
   return (
     <canvas 
       ref={canvasRef} 
-      width={300} 
-      height={100} 
-      className="w-full h-32 rounded-lg border border-gray-200 bg-white"
+      width={600} 
+      height={200} 
+      className="w-full h-full rounded-2xl border border-white/5 bg-black/40 backdrop-blur-md shadow-inner"
     />
   );
 };
