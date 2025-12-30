@@ -14,9 +14,9 @@ const PlusIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor
 const ChevronLeftIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" /></svg>;
 const TrashIcon = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>;
 const MicOffIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3l18 18" /></svg>;
-const EditIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>;
 const SparklesIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>;
 const SquareIcon = () => <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1" /></svg>;
+const CloseIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>;
 
 type View = 'DASHBOARD' | 'EDITOR' | 'SESSION';
 type SessionStatus = 'CONNECTING' | 'LISTENING' | 'PROCESSING' | 'SPEAKING' | 'RECONNECTING' | 'ERROR';
@@ -66,6 +66,7 @@ export default function App() {
   };
 
   const handleSave = async () => {
+    if (!editData.name.trim()) return;
     await savePreset(editData);
     await refreshPresets();
     setView('DASHBOARD');
@@ -88,25 +89,29 @@ export default function App() {
     <div className="min-h-screen bg-white text-black font-sans selection:bg-black selection:text-white overflow-hidden relative">
       <div className="absolute inset-0 bg-[#fafafa] -z-10"></div>
 
-      {view === 'DASHBOARD' && (
-        <Dashboard 
-          presets={presets} 
-          onCreate={handleCreateNew} 
-          onEdit={handleEdit} 
-          onStart={handleStartSession} 
-        />
-      )}
+      {/* DASHBOARD VIEW */}
+      <Dashboard 
+        presets={presets} 
+        onCreate={handleCreateNew} 
+        onEdit={handleEdit} 
+        onStart={handleStartSession} 
+      />
       
+      {/* EDITOR OVERLAY */}
       {view === 'EDITOR' && (
-        <Editor 
-          data={editData} 
-          onChange={setEditData} 
-          onSave={handleSave} 
-          onCancel={() => setView('DASHBOARD')}
-          onDelete={() => setIsDeleteModalOpen(true)}
-        />
+        <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-white/60 backdrop-blur-md animate-fade-in" onClick={() => setView('DASHBOARD')} />
+          <Editor 
+            data={editData} 
+            onChange={setEditData} 
+            onSave={handleSave} 
+            onCancel={() => setView('DASHBOARD')}
+            onDelete={() => setIsDeleteModalOpen(true)}
+          />
+        </div>
       )}
 
+      {/* SESSION VIEW */}
       {view === 'SESSION' && (
         <div className="fixed inset-0 z-50 animate-slide-up">
           <LiveSession 
@@ -132,16 +137,11 @@ export default function App() {
 function Dashboard({ presets, onCreate, onEdit, onStart }: any) {
   return (
     <div className="h-screen flex flex-col p-6 md:p-12 animate-fade-in relative overflow-y-auto">
-      <header className="mb-12 flex flex-col items-center justify-center">
+      <header className="mb-12 flex flex-col items-center justify-center text-center">
          <h1 className="font-display text-5xl md:text-6xl tracking-wider text-black border-b-2 border-black pb-2 mb-3">Ohanashi</h1>
-         <a 
-           href="https://philiaspace.com" 
-           target="_blank" 
-           rel="noopener noreferrer"
-           className="group flex items-center gap-1.5 text-[10px] uppercase tracking-[0.15em] text-gray-400 hover:text-black transition-colors duration-300 font-mono"
-         >
+         <div className="group flex flex-col items-center gap-1.5 text-[10px] uppercase tracking-[0.15em] text-gray-400 font-mono">
            <span>Dibuat oleh Philia Space Community</span>
-         </a>
+         </div>
       </header>
 
       <div className="flex-1 w-full max-w-6xl mx-auto">
@@ -199,87 +199,150 @@ function Editor({ data, onChange, onSave, onCancel, onDelete }: any) {
     onChange({ ...data, [field]: value });
   };
 
+  const getPitchLabel = (val: number) => {
+    if (val === 6) return 'Neutral';
+    const diff = val - 6;
+    return diff > 0 ? `+${diff}` : `${diff}`;
+  };
+
   return (
-    <div className="max-w-md mx-auto h-screen flex flex-col bg-white animate-slide-up shadow-2xl">
-      <header className="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white/90 backdrop-blur-sm z-10">
-        <button onClick={onCancel}><ChevronLeftIcon /></button>
-        <h2 className="font-serif text-lg">Configuration</h2>
-        <button onClick={onDelete} className="text-red-500 hover:text-red-600 transition-colors"><TrashIcon /></button>
+    <div className="relative w-full max-w-lg bg-white border-2 border-black shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] flex flex-col max-h-[85vh] animate-slide-up">
+      {/* STICKY HEADER */}
+      <header className="p-5 border-b-2 border-black flex items-center justify-between sticky top-0 bg-white z-20">
+        <div className="flex items-center gap-4">
+          <button onClick={onCancel} className="p-1 hover:bg-gray-100 rounded-full transition-colors"><CloseIcon /></button>
+          <h2 className="font-display text-xl tracking-wide uppercase">Configuration</h2>
+        </div>
+        <button onClick={onDelete} className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"><TrashIcon /></button>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-8">
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1">Preset Name</label>
-              <input type="text" value={data.name} onChange={e => update('name', e.target.value)} className="w-full text-2xl font-serif border-b border-gray-300 focus:border-black outline-none py-2 bg-transparent" placeholder="My Assistant" />
+      {/* SCROLLABLE BODY */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-8 scroll-smooth">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="md:col-span-2">
+              <label className="block text-xs uppercase tracking-[0.2em] font-bold text-gray-400 mb-1">Preset Name</label>
+              <input type="text" value={data.name} onChange={e => update('name', e.target.value)} className="w-full text-2xl font-serif border-b-2 border-gray-100 focus:border-black outline-none py-2 bg-transparent transition-colors" placeholder="Untitled Persona" />
             </div>
             <div>
-              <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1">AI Name</label>
-              <input type="text" value={data.aiName} onChange={e => update('aiName', e.target.value)} className="w-full text-lg border-b border-gray-300 focus:border-black outline-none py-1 bg-transparent" placeholder="Persona Name" />
+              <label className="block text-xs uppercase tracking-[0.2em] font-bold text-gray-400 mb-1">AI Identity</label>
+              <input type="text" value={data.aiName} onChange={e => update('aiName', e.target.value)} className="w-full text-lg border-b-2 border-gray-100 focus:border-black outline-none py-1 bg-transparent transition-colors" placeholder="AI Name" />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-6">
             <div>
-              <label className="block text-xs uppercase tracking-wider text-gray-500 mb-2">Voice</label>
-              <select value={data.voice} onChange={e => update('voice', e.target.value)} className="w-full p-2 bg-gray-50 rounded-lg border-none">
-                {Object.values(VoiceModel).map(v => <option key={v} value={v}>{v}</option>)}
-              </select>
+              <label className="block text-xs uppercase tracking-[0.2em] font-bold text-gray-400 mb-2">Voice Type</label>
+              <div className="relative">
+                <select value={data.voice} onChange={e => update('voice', e.target.value)} className="w-full p-3 bg-gray-50 border border-transparent focus:border-black rounded-lg appearance-none font-mono text-xs cursor-pointer">
+                  {Object.values(VoiceModel).map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </div>
+              </div>
             </div>
             <div>
-              <label className="block text-xs uppercase tracking-wider text-gray-500 mb-2">Language</label>
-              <select value={data.language} onChange={e => update('language', e.target.value)} className="w-full p-2 bg-gray-50 rounded-lg border-none">
-                {Object.values(SupportedLanguage).map(l => <option key={l} value={l}>{l}</option>)}
-              </select>
+              <label className="block text-xs uppercase tracking-[0.2em] font-bold text-gray-400 mb-2">Language</label>
+              <div className="relative">
+                <select value={data.language} onChange={e => update('language', e.target.value)} className="w-full p-3 bg-gray-50 border border-transparent focus:border-black rounded-lg appearance-none font-mono text-xs cursor-pointer">
+                  {Object.values(SupportedLanguage).map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </div>
+              </div>
             </div>
+          </div>
+
+          {/* TEMPERATURE SLIDER */}
+          <div>
+              <div className="flex justify-between items-center mb-3">
+                <label className="block text-xs uppercase tracking-[0.2em] font-bold text-gray-400">Temperature (Creativity)</label>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-gray-100 text-gray-600">
+                  {data.temperature.toFixed(1)}
+                </span>
+              </div>
+              <input 
+                type="range" 
+                min="0" 
+                max="1.5" 
+                step="0.1" 
+                value={data.temperature} 
+                onChange={e => update('temperature', parseFloat(e.target.value))} 
+                className="w-full h-2 bg-gray-100 rounded-full appearance-none cursor-pointer accent-black touch-none" 
+              />
+              <div className="flex justify-between mt-2 text-[9px] text-gray-300 font-mono uppercase tracking-widest font-bold">
+                <span>Logical</span>
+                <span>Creative</span>
+              </div>
           </div>
 
           <div className="space-y-6">
             <div>
-               <label className="block text-xs uppercase tracking-wider text-gray-500 mb-2 flex justify-between">
-                 <span>Browser Pitch Shifter (1-11)</span>
-                 <span className="font-mono">{data.browserPitch || 6}</span>
-               </label>
-               <input 
-                 type="range" 
-                 min="1" 
-                 max="11" 
-                 step="1" 
-                 value={data.browserPitch || 6} 
-                 onChange={e => update('browserPitch', parseInt(e.target.value))} 
-                 className="w-full h-1.5 bg-gray-200 rounded-full appearance-none cursor-pointer accent-black mb-1" 
-               />
-               <div className="flex justify-between text-[10px] text-gray-400 font-mono uppercase tracking-tighter">
-                 <span>Deep</span>
-                 <span className={data.browserPitch === 6 ? 'text-black font-bold' : ''}>Normal</span>
-                 <span>High</span>
+               <div className="flex justify-between items-center mb-3">
+                 <label className="block text-xs uppercase tracking-[0.2em] font-bold text-gray-400">Browser Pitch Shifter</label>
+                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest ${data.browserPitch === 6 ? 'bg-black text-white' : 'bg-gray-100 text-gray-500'}`}>
+                   {getPitchLabel(data.browserPitch)}
+                 </span>
+               </div>
+               <div className="px-1">
+                 <input 
+                   type="range" 
+                   min="1" 
+                   max="11" 
+                   step="1" 
+                   value={data.browserPitch || 6} 
+                   onChange={e => update('browserPitch', parseInt(e.target.value))} 
+                   className="w-full h-2 bg-gray-100 rounded-full appearance-none cursor-pointer accent-black touch-none" 
+                 />
+                 <div className="flex justify-between mt-2 text-[9px] text-gray-300 font-mono uppercase tracking-widest font-bold">
+                   <span>-5 Deep</span>
+                   <span>+5 High</span>
+                 </div>
                </div>
             </div>
 
             <div>
-               <label className="block text-xs uppercase tracking-wider text-gray-500 mb-2">System Instruction</label>
-               <textarea value={data.systemInstruction} onChange={e => update('systemInstruction', e.target.value)} className="w-full h-32 p-3 bg-gray-50 rounded-lg border-none resize-none text-sm" placeholder="Define behavior..." />
+               <label className="block text-xs uppercase tracking-[0.2em] font-bold text-gray-400 mb-2">System Instructions</label>
+               <textarea 
+                  value={data.systemInstruction} 
+                  onChange={e => update('systemInstruction', e.target.value)} 
+                  className="w-full h-32 p-4 bg-gray-50 border border-transparent focus:border-black rounded-xl resize-none text-sm font-serif leading-relaxed transition-colors" 
+                  placeholder="Tell the AI how to behave, its personality, or roleplay constraints..." 
+               />
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+          <div className="flex items-center justify-between p-5 bg-gray-50 rounded-2xl border border-gray-100">
             <div>
-              <h3 className="font-serif text-lg">Advanced Mode</h3>
-              <p className="text-xs text-gray-400">Deep acoustic control</p>
+              <h3 className="font-display text-sm tracking-widest">Advanced Mode</h3>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-1 font-bold">Deep acoustic signaling</p>
             </div>
-            <button onClick={() => update('advancedModeEnabled', !data.advancedModeEnabled)} className={`w-12 h-6 rounded-full relative transition-colors ${data.advancedModeEnabled ? 'bg-black' : 'bg-gray-200'}`}>
-              <span className={`absolute top-1 left-1 bg-white h-4 w-4 rounded-full transition-transform ${data.advancedModeEnabled ? 'translate-x-6' : ''}`} />
+            <button 
+              onClick={() => update('advancedModeEnabled', !data.advancedModeEnabled)} 
+              className={`w-14 h-7 rounded-full relative transition-all duration-300 ${data.advancedModeEnabled ? 'bg-black' : 'bg-gray-300'}`}
+            >
+              <span className={`absolute top-1 left-1 bg-white h-5 w-5 rounded-full transition-transform duration-300 shadow-sm ${data.advancedModeEnabled ? 'translate-x-7' : ''}`} />
             </button>
           </div>
 
           {data.advancedModeEnabled && (
-            <AdvancedEditor settings={data.advancedSettings} onChange={(s: any) => update('advancedSettings', s)} />
+            <div className="animate-fade-in">
+              <AdvancedEditor settings={data.advancedSettings} onChange={(s: any) => update('advancedSettings', s)} />
+            </div>
           )}
       </div>
 
-      <div className="p-6 border-t border-gray-100">
-        <button onClick={onSave} className="w-full py-4 bg-black text-white font-medium uppercase tracking-widest text-sm hover:bg-gray-900 transition-colors">Save Configuration</button>
-      </div>
+      {/* STICKY FOOTER */}
+      <footer className="p-6 border-t-2 border-black bg-white sticky bottom-0 z-20">
+        <button 
+          onClick={onSave} 
+          className="w-full py-4 bg-black text-white font-bold uppercase tracking-[0.3em] text-xs hover:bg-gray-800 active:scale-[0.98] transition-all shadow-lg flex items-center justify-center gap-3"
+        >
+          <span>Save Configuration</span>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+        </button>
+      </footer>
     </div>
   );
 }
@@ -347,7 +410,6 @@ function LiveSession({ preset, onClose }: { preset: Preset, onClose: () => void 
         const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
         await Promise.all([inputCtx.resume(), outputCtx.resume()]);
 
-        // Output Path (AI Voice)
         const outAnalyser = outputCtx.createAnalyser();
         outAnalyser.fftSize = 256;
         const outGain = outputCtx.createGain();
@@ -356,7 +418,6 @@ function LiveSession({ preset, onClose }: { preset: Preset, onClose: () => void 
         outAnalyser.connect(outputCtx.destination);
         setOutputAnalyser(outAnalyser);
 
-        // Input Path (User Voice)
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         const micSource = inputCtx.createMediaStreamSource(stream);
         const inAnalyser = inputCtx.createAnalyser();
@@ -400,16 +461,11 @@ function LiveSession({ preset, onClose }: { preset: Preset, onClose: () => void 
                 try {
                   const audioBuffer = await decodeAudioData(base64ToUint8Array(base64Audio), outputCtx);
                   
-                  // CALCULATE PLAYBACK RATE ON 1-11 SCALE (6 is center)
-                  // We map scale 1-11 to semitones -5 to +5.
                   const semitones = (preset.browserPitch - 6) * 1.0; 
                   const playbackRate = Math.pow(2, semitones / 12);
-                  
-                  // CALCULATE EFFECTIVE DURATION (Crucial for gapless)
                   const effectiveDuration = audioBuffer.duration / playbackRate;
                   
                   const currentTime = outputCtx.currentTime;
-                  // Ensure we don't start in the past
                   if (nextStartTimeRef.current < currentTime) {
                     nextStartTimeRef.current = currentTime;
                   }
@@ -417,16 +473,12 @@ function LiveSession({ preset, onClose }: { preset: Preset, onClose: () => void 
                   const source = outputCtx.createBufferSource();
                   source.buffer = audioBuffer;
                   source.playbackRate.value = playbackRate;
-                  
                   source.connect(outGain);
-                  
-                  // Start exactly where the previous chunk (effectively) ends
                   source.start(nextStartTimeRef.current);
                   activeSourcesRef.current.add(source);
                   activeSourceCountRef.current++;
                   updateStatus('SPEAKING'); 
 
-                  // Update next start time based on the modified effective duration
                   nextStartTimeRef.current += effectiveDuration;
 
                   source.onended = () => {
@@ -450,7 +502,10 @@ function LiveSession({ preset, onClose }: { preset: Preset, onClose: () => void 
             responseModalities: [Modality.AUDIO],
             speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: preset.voice } } },
             systemInstruction: systemInstruction,
-            generationConfig: { temperature: preset.temperature }
+            generationConfig: { 
+              temperature: preset.temperature,
+              thinkingConfig: { thinkingBudget: 0 }
+            }
           }
         });
 
