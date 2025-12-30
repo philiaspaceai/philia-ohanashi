@@ -10,6 +10,11 @@ export const useOhanashi = () => {
   const [status, _setStatus] = useState<ConnectionStatus>('Idle');
   const [audioActive, _setAudioActive] = useState(false);
 
+  const statusRef = useRef(status);
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+
   const wsRef = useRef<WebSocket | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
@@ -33,16 +38,19 @@ export const useOhanashi = () => {
   }, []);
 
   const setStatus = useCallback((newStatus: ConnectionStatus) => {
-    addLog('STATUS_CHANGED', { from: status, to: newStatus });
+    addLog('STATUS_CHANGED', { from: statusRef.current, to: newStatus });
     _setStatus(newStatus);
   }, [addLog]);
 
   const setAudioActive = useCallback((isActive: boolean) => {
-    if (audioActive !== isActive) {
-      addLog(isActive ? 'AI_SPEAKING_START' : 'AI_SPEAKING_END');
-      _setAudioActive(isActive);
-    }
-  }, [addLog, audioActive]);
+    _setAudioActive(currentIsActive => {
+      if (currentIsActive !== isActive) {
+        addLog(isActive ? 'AI_SPEAKING_START' : 'AI_SPEAKING_END');
+        return isActive;
+      }
+      return currentIsActive;
+    });
+  }, [addLog]);
 
 
   const cleanupAudioPlayback = useCallback(() => {
@@ -61,7 +69,10 @@ export const useOhanashi = () => {
   }, [setAudioActive, addLog]);
 
   const stopSession = useCallback(() => {
+    // Set status to idle immediately to prevent reconnects
+    setStatus('Idle');
     addLog('SESSION_STOP_REQUESTED');
+
     if (sessionStartTimeRef.current) {
         const duration = (Date.now() - sessionStartTimeRef.current) / 1000;
         addLog('SESSION_DURATION_CALCULATED', { durationSeconds: duration.toFixed(2) });
@@ -73,7 +84,7 @@ export const useOhanashi = () => {
     
     if (wsRef.current) {
         wsRef.current.onclose = null; 
-        wsRef.current.close(1000, "User initiated disconnect"); // Code 1000 for normal closure
+        wsRef.current.close(1000, "User initiated disconnect");
         wsRef.current = null;
     }
     
@@ -88,7 +99,6 @@ export const useOhanashi = () => {
     }
     
     cleanupAudioPlayback();
-    setStatus('Idle');
     addLog('SESSION_ENDED_CLEANUP_COMPLETE');
     reconnectAttemptRef.current = 0;
   }, [cleanupAudioPlayback, addLog, setStatus]);
@@ -167,21 +177,23 @@ export const useOhanashi = () => {
         addLog('WEBSOCKET_CLOSED', { code: event.code, reason: event.reason, wasClean: event.wasClean });
         if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
         
-        // This is the auto-reconnect logic
-        if (event.code !== 1000) { // Don't reconnect on normal closure
-            addLog('RECONNECT_LOGIC_TRIGGER_CHECK', { currentStatus: status, canReconnect: status !== 'Idle' && status !== 'Error' });
+        // This is the auto-reconnect logic. Use the ref for the most current state.
+        if (event.code !== 1000 && statusRef.current !== 'Idle' && statusRef.current !== 'Error') { 
+            addLog('RECONNECT_LOGIC_TRIGGERED', { currentStatus: statusRef.current });
             const delay = RECONNECT_INTERVALS[reconnectAttemptRef.current] || RECONNECT_INTERVALS[RECONNECT_INTERVALS.length - 1];
             addLog('RECONNECT_SCHEDULED', { attempt: reconnectAttemptRef.current + 1, delay });
             reconnectAttemptRef.current++;
             setStatus('Reconnecting...');
             reconnectTimeoutRef.current = window.setTimeout(connect, delay);
+        } else {
+             addLog('RECONNECT_LOGIC_SKIPPED', { currentStatus: statusRef.current });
         }
     };
-  }, [status, stopSession, addLog, setStatus, setAudioActive]);
+  }, [stopSession, addLog, setStatus, setAudioActive]);
 
 
   const startSession = useCallback(async (preset: Preset) => {
-    if (status !== 'Idle') return;
+    if (statusRef.current !== 'Idle') return;
     
     logsRef.current = []; // Clear logs for new session
     sessionStartTimeRef.current = Date.now();
@@ -221,7 +233,8 @@ export const useOhanashi = () => {
             if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
                 const inputData = e.inputBuffer.getChannelData(0);
                 const payload = createPcmBlob(inputData);
-                addLog('AUDIO_CHUNK_SENT', { size: payload.data.length, wsReadyState: wsRef.current.readyState });
+                // Reduce log spam by commenting this out or making it conditional
+                // addLog('AUDIO_CHUNK_SENT', { size: payload.data.length, wsReadyState: wsRef.current.readyState });
                 wsRef.current.send(JSON.stringify({ type: 'audio', payload }));
             }
         };
@@ -235,7 +248,7 @@ export const useOhanashi = () => {
         addLog('ERROR_MIC_ACCESS_DENIED', { name: err.name, message: err.message });
         setStatus('Error');
     }
-  }, [status, connect, addLog, setStatus]);
+  }, [connect, addLog, setStatus]);
   
   const getLogs = useCallback(() => {
     return logsRef.current;
@@ -243,7 +256,10 @@ export const useOhanashi = () => {
 
   useEffect(() => {
     return () => {
-      stopSession();
+      // Ensure session is fully stopped on component unmount
+      if (statusRef.current !== 'Idle') {
+          stopSession();
+      }
     };
   }, [stopSession]);
 
