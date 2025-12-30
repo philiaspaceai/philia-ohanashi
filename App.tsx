@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
-import { Preset, AppState, Language, VoiceModel, PitchMode, AdvancedVocalSettings } from './types.ts';
+import { Preset, AppState, Language, VoiceModel, PitchMode, AdvancedVocalSettings, LogEntry } from './types.ts';
 import { APP_TITLE, DEFAULT_PRESETS } from './constants.ts';
 import { Button } from './components/Button.tsx';
 import { Modal } from './components/Modal.tsx';
@@ -37,8 +37,9 @@ export default function App() {
   const [currentPreset, setCurrentPreset] = useState<Preset | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPreset, setEditingPreset] = useState<Partial<Preset> | null>(null);
+  const [sessionLogs, setSessionLogs] = useState<LogEntry[] | null>(null);
 
-  const { status, audioActive, startSession, stopSession } = useOhanashi();
+  const { status, audioActive, startSession, stopSession, getLogs } = useOhanashi();
 
   useEffect(() => {
     const loadData = async () => {
@@ -105,15 +106,38 @@ export default function App() {
 
   useEffect(() => {
     if (appState === 'chat' && currentPreset) {
+      setSessionLogs(null); // Reset logs when starting a new session
       startSession(currentPreset);
     }
   }, [appState, currentPreset, startSession]);
 
   const handleStopChat = useCallback(() => {
     stopSession();
+    setSessionLogs(getLogs());
     setAppState('home');
-    setCurrentPreset(null);
-  }, [stopSession]);
+    // We keep currentPreset for the exit animation, it will be cleared after
+  }, [stopSession, getLogs]);
+
+  const handleDownloadLog = () => {
+    if (!sessionLogs || sessionLogs.length === 0) return;
+
+    const logHeader = `Ohanashi Session Log\nTimestamp: ${new Date().toLocaleString()}\nUser Agent: ${navigator.userAgent}\n\n========================================\n\n`;
+    
+    const formattedLogs = sessionLogs.map(log => 
+      `[${log.timestamp}] - ${log.event}\n${JSON.stringify(log.details, null, 2)}`
+    ).join('\n\n----------------------------------------\n\n');
+
+    const fullLog = logHeader + formattedLogs;
+    const blob = new Blob([fullLog], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ohanashi_log_${new Date().toISOString()}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="min-h-screen bg-white text-black selection:bg-black selection:text-white font-sans antialiased">
@@ -126,88 +150,97 @@ export default function App() {
           {APP_TITLE}
         </motion.h1>
         {appState === 'home' && (
-          <Button variant="primary" size="sm" onClick={handleCreatePreset} className="rounded-full px-8">
-            Create Preset
-          </Button>
+          <div className="flex items-center gap-4">
+            <Button variant="secondary" size="sm" onClick={handleDownloadLog} disabled={!sessionLogs || sessionLogs.length === 0} className="rounded-full px-8">
+              Log
+            </Button>
+            <Button variant="primary" size="sm" onClick={handleCreatePreset} className="rounded-full px-8">
+              Create Preset
+            </Button>
+          </div>
         )}
       </nav>
 
       <main className="pt-32 pb-24 px-10 max-w-6xl mx-auto">
-        <AnimatePresence mode="wait">
-          {appState === 'home' && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-12">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {presets.map(p => (
-                  <motion.div 
-                    key={p.id} 
-                    whileHover={{ y: -4, shadow: "0 20px 40px -12px rgba(0,0,0,0.1)" }}
-                    className="flex flex-col border-2 border-gray-300 p-6 bg-white transition-all duration-700 relative overflow-hidden group rounded-xl"
-                  >
-                    <div className="flex justify-between items-center mb-4">
-                      <span className="text-[9px] font-black tracking-[0.3em] text-gray-400 uppercase">{p.language}</span>
-                      <div className="flex gap-4 opacity-0 group-hover:opacity-100 transition-all">
-                        <button onClick={() => handleEditPreset(p)} className="text-[9px] uppercase font-bold hover:text-black text-gray-400">Edit</button>
-                        <button onClick={(e) => { e.stopPropagation(); deletePresetDB(p.id).then(() => getAllPresets().then(setPresets)); }} className="text-[9px] uppercase font-bold text-red-400 hover:text-red-600">Delete</button>
-                      </div>
-                    </div>
-                    <h3 className="text-xl font-serif-jp font-bold mb-2">{p.name}</h3>
-                    <p className="text-xs text-gray-500 italic line-clamp-2 leading-relaxed mb-6">
-                      {p.systemInstruction || "No description provided."}
-                    </p>
-                    <Button variant="outline" fullWidth onClick={() => { setCurrentPreset(p); setAppState('chat'); }} className="border-2 border-black/10 hover:border-black py-3 font-black tracking-widest uppercase text-[10px] mt-auto">
-                      Start Session
-                    </Button>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {appState === 'chat' && currentPreset && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center min-h-[60vh] space-y-16">
-              <div className="relative group">
-                <motion.div 
-                  animate={{ 
-                    scale: audioActive ? [1, 1.05, 1] : 1,
-                    borderColor: audioActive ? "rgba(0,0,0,1)" : "rgba(0,0,0,0.1)"
-                  }} 
-                  transition={{ duration: 1, repeat: audioActive ? Infinity : 0 }}
-                  className="w-56 h-56 rounded-full border flex items-center justify-center bg-white shadow-2xl relative z-10"
-                >
-                  <span className="text-7xl font-serif-jp">{currentPreset.aiNickname.charAt(0)}</span>
-                </motion.div>
-                <AnimatePresence>
-                  {audioActive && (
+        <LayoutGroup>
+          <AnimatePresence mode="wait" onExitComplete={() => setCurrentPreset(null)}>
+            {appState === 'home' ? (
+              <motion.div key="home" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {presets.map(p => (
                     <motion.div 
-                      initial={{ scale: 0.8, opacity: 0 }} 
-                      animate={{ scale: 1.2, opacity: 0.1 }} 
-                      exit={{ scale: 0.8, opacity: 0 }}
-                      className="absolute inset-0 rounded-full bg-black -z-0" 
-                    />
-                  )}
-                </AnimatePresence>
-              </div>
-              
-              <div className="text-center space-y-4">
-                <h2 className="text-5xl font-bold font-serif-jp tracking-tight">{currentPreset.aiNickname}</h2>
-                <p className="text-gray-300 font-bold uppercase tracking-[0.4em] text-[10px]">{status}</p>
-              </div>
+                      layoutId={`preset-card-${p.id}`}
+                      key={p.id} 
+                      whileHover={{ y: -4, shadow: "0 20px 40px -12px rgba(0,0,0,0.1)" }}
+                      className="flex flex-col border-2 border-gray-300 p-6 bg-white transition-all duration-700 relative overflow-hidden group rounded-xl"
+                      style={{ borderRadius: '12px' }}
+                    >
+                      <div className="flex justify-between items-center mb-4">
+                        <span className="text-[9px] font-black tracking-[0.3em] text-gray-400 uppercase">{p.language}</span>
+                        <div className="flex gap-4 opacity-0 group-hover:opacity-100 transition-all">
+                          <button onClick={() => handleEditPreset(p)} className="text-[9px] uppercase font-bold hover:text-black text-gray-400">Edit</button>
+                          <button onClick={(e) => { e.stopPropagation(); deletePresetDB(p.id).then(() => getAllPresets().then(setPresets)); }} className="text-[9px] uppercase font-bold text-red-400 hover:text-red-600">Delete</button>
+                        </div>
+                      </div>
+                      <h3 className="text-xl font-serif-jp font-bold mb-2">{p.name}</h3>
+                      <p className="text-xs text-gray-500 italic line-clamp-2 leading-relaxed mb-6">
+                        {p.systemInstruction || "No description provided."}
+                      </p>
+                      <Button variant="outline" fullWidth onClick={() => { setCurrentPreset(p); setAppState('chat'); }} className="border-2 border-black/10 hover:border-black py-3 font-black tracking-widest uppercase text-[10px] mt-auto">
+                        Start Session
+                      </Button>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            ) : currentPreset && (
+              <motion.div key="chat" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center min-h-[60vh] space-y-16">
+                <div className="relative group">
+                  <motion.div 
+                    layoutId={`preset-card-${currentPreset.id}`}
+                    animate={{ 
+                      scale: audioActive ? [1, 1.05, 1] : 1,
+                      borderColor: audioActive ? "rgba(0,0,0,1)" : "rgba(0,0,0,0.1)"
+                    }} 
+                    transition={{ duration: 1, repeat: audioActive ? Infinity : 0 }}
+                    className="w-56 h-56 rounded-full border flex items-center justify-center bg-white shadow-2xl relative z-10"
+                    style={{ borderRadius: '9999px' }}
+                  >
+                    <motion.span layout="position" className="text-7xl font-serif-jp">{currentPreset.aiNickname.charAt(0)}</motion.span>
+                  </motion.div>
+                  <AnimatePresence>
+                    {audioActive && (
+                      <motion.div 
+                        initial={{ scale: 0.8, opacity: 0 }} 
+                        animate={{ scale: 1.2, opacity: 0.1 }} 
+                        exit={{ scale: 0.8, opacity: 0 }}
+                        className="absolute inset-0 rounded-full bg-black -z-0" 
+                      />
+                    )}
+                  </AnimatePresence>
+                </div>
+                
+                <div className="text-center space-y-4">
+                  <h2 className="text-5xl font-bold font-serif-jp tracking-tight">{currentPreset.aiNickname}</h2>
+                  <p className="text-gray-300 font-bold uppercase tracking-[0.4em] text-[10px]">{status}</p>
+                </div>
 
-              <div className="w-full max-w-md">
-                <AudioVisualizer active={audioActive || status === 'Connected'} />
-              </div>
+                <div className="w-full max-w-md">
+                  <AudioVisualizer active={audioActive || status === 'Connected'} />
+                </div>
 
-              <button 
-                onClick={handleStopChat}
-                className="w-20 h-20 rounded-full border border-gray-100 flex items-center justify-center hover:bg-black hover:text-white transition-all duration-500 group"
-              >
-                <svg className="w-6 h-6 transform group-hover:rotate-90 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                <button 
+                  onClick={handleStopChat}
+                  className="w-20 h-20 rounded-full border border-gray-100 flex items-center justify-center hover:bg-black hover:text-white transition-all duration-500 group"
+                >
+                  <svg className="w-6 h-6 transform group-hover:rotate-90 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </LayoutGroup>
       </main>
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingPreset?.name ? 'Edit Preset' : 'Create Identity'}>

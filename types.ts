@@ -48,3 +48,9 @@ export type ConnectionStatus =
   | 'Reconnecting...' 
   | 'Interrupted' 
   | 'Error';
+
+export interface LogEntry {
+  timestamp: string;
+  event: string;
+  details: any;
+}

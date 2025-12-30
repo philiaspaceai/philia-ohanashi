@@ -1,14 +1,14 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Preset, ConnectionStatus } from '../types.ts';
+import { Preset, ConnectionStatus, LogEntry } from '../types.ts';
 import { decode, decodeAudioData, createPcmBlob, createSilentPcmPayload } from '../utils/audioUtils.ts';
 
 const RECONNECT_INTERVALS = [1000, 2000, 5000, 10000]; // in ms
 const HEARTBEAT_INTERVAL = 4000; // in ms
 
 export const useOhanashi = () => {
-  const [status, setStatus] = useState<ConnectionStatus>('Idle');
-  const [audioActive, setAudioActive] = useState(false);
+  const [status, _setStatus] = useState<ConnectionStatus>('Idle');
+  const [audioActive, _setAudioActive] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -21,24 +21,59 @@ export const useOhanashi = () => {
   const nextStartTimeRef = useRef(0);
   const presetRef = useRef<Preset | null>(null);
   const reconnectAttemptRef = useRef(0);
+  const logsRef = useRef<LogEntry[]>([]);
+  const sessionStartTimeRef = useRef<number | null>(null);
+  
+  const addLog = useCallback((event: string, details: any = {}) => {
+    logsRef.current.push({
+      timestamp: new Date().toISOString(),
+      event,
+      details
+    });
+  }, []);
+
+  const setStatus = useCallback((newStatus: ConnectionStatus) => {
+    addLog('STATUS_CHANGED', { from: status, to: newStatus });
+    _setStatus(newStatus);
+  }, [addLog]);
+
+  const setAudioActive = useCallback((isActive: boolean) => {
+    if (audioActive !== isActive) {
+      addLog(isActive ? 'AI_SPEAKING_START' : 'AI_SPEAKING_END');
+      _setAudioActive(isActive);
+    }
+  }, [addLog, audioActive]);
+
 
   const cleanupAudioPlayback = useCallback(() => {
     sourcesRef.current.forEach(source => { try { source.stop(); } catch(e) {} });
     sourcesRef.current.clear();
     nextStartTimeRef.current = 0;
     setAudioActive(false);
-    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      audioContextRef.current.close();
+    
+    if (audioContextRef.current) {
+      if (audioContextRef.current.state !== 'closed') {
+        addLog('AUDIO_CONTEXT_CLOSING', { state: audioContextRef.current.state });
+        audioContextRef.current.close();
+      }
+      audioContextRef.current = null;
     }
-  }, []);
+  }, [setAudioActive, addLog]);
 
   const stopSession = useCallback(() => {
+    addLog('SESSION_STOP_REQUESTED');
+    if (sessionStartTimeRef.current) {
+        const duration = (Date.now() - sessionStartTimeRef.current) / 1000;
+        addLog('SESSION_DURATION_CALCULATED', { durationSeconds: duration.toFixed(2) });
+        sessionStartTimeRef.current = null;
+    }
+
     if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
     if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
     
     if (wsRef.current) {
-        wsRef.current.onclose = null; // prevent reconnect logic from firing on manual close
-        wsRef.current.close();
+        wsRef.current.onclose = null; 
+        wsRef.current.close(1000, "User initiated disconnect"); // Code 1000 for normal closure
         wsRef.current = null;
     }
     
@@ -54,30 +89,31 @@ export const useOhanashi = () => {
     
     cleanupAudioPlayback();
     setStatus('Idle');
+    addLog('SESSION_ENDED_CLEANUP_COMPLETE');
     reconnectAttemptRef.current = 0;
-  }, [cleanupAudioPlayback]);
+  }, [cleanupAudioPlayback, addLog, setStatus]);
 
   const connect = useCallback(() => {
     if (!presetRef.current) {
-        console.error("Attempted to connect without a preset.");
+        addLog('ERROR_NO_PRESET');
         return;
     }
     
-    const wsUrl = `wss://${window.location.host}/api/connect`;
-    const ws = new WebSocket(wsUrl);
+    addLog('WEBSOCKET_CONNECT_ATTEMPT', { url: `wss://${window.location.host}/api/connect` });
+    const ws = new WebSocket(`wss://${window.location.host}/api/connect`);
     wsRef.current = ws;
 
     setStatus('Connecting...');
 
     ws.onopen = () => {
-      reconnectAttemptRef.current = 0; // Reset on successful connection
-      // Send configuration to the proxy server
+      addLog('WEBSOCKET_OPENED', { protocol: ws.protocol, extensions: ws.extensions });
+      reconnectAttemptRef.current = 0;
       ws.send(JSON.stringify({ type: 'config', preset: presetRef.current }));
       
-      // Start heartbeat to keep connection alive
       if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
       heartbeatIntervalRef.current = window.setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
+              addLog('HEARTBEAT_SENT');
               const silentPayload = createSilentPcmPayload();
               ws.send(JSON.stringify({ type: 'audio', payload: silentPayload }));
           }
@@ -86,75 +122,106 @@ export const useOhanashi = () => {
 
     ws.onmessage = async (event) => {
         const message = JSON.parse(event.data);
+        addLog('WEBSOCKET_MESSAGE_RECEIVED', { type: message.type });
 
         if (message.type === 'status' && message.status === 'connected') {
+            addLog('GEMINI_SESSION_CONNECTED');
             setStatus('Connected');
         } else if (message.type === 'audio' && message.data.serverContent?.modelTurn?.parts[0]?.inlineData?.data) {
             setAudioActive(true);
+            const b64 = message.data.serverContent.modelTurn.parts[0].inlineData.data;
+            addLog('AUDIO_CHUNK_RECEIVED', { size: b64.length, currentQueueSize: sourcesRef.current.size });
+
             const outputCtx = audioContextRef.current!;
             nextStartTimeRef.current = Math.max(nextStartTimeRef.current, outputCtx.currentTime);
-            const b64 = message.data.serverContent.modelTurn.parts[0].inlineData.data;
+            
             const buffer = await decodeAudioData(decode(b64), outputCtx, 24000, 1);
+            addLog('AUDIO_CHUNK_DECODED', { durationMs: buffer.duration * 1000 });
+            
             const source = outputCtx.createBufferSource();
             source.buffer = buffer;
             source.connect(outputCtx.destination);
             source.onended = () => {
               sourcesRef.current.delete(source);
-              if (sourcesRef.current.size === 0) setAudioActive(false);
+              if (sourcesRef.current.size === 0) {
+                setAudioActive(false);
+              }
             };
+            addLog('PLAYBACK_SCHEDULED', { startTime: nextStartTimeRef.current, audioCtxTime: outputCtx.currentTime });
             source.start(nextStartTimeRef.current);
             nextStartTimeRef.current += buffer.duration;
             sourcesRef.current.add(source);
         } else if (message.type === 'error') {
-            console.error('Error from server:', message.message);
+            addLog('ERROR_FROM_SERVER', { message: message.message });
             setStatus('Error');
             stopSession();
         }
     };
 
     ws.onerror = (err) => {
-        console.error('WebSocket error:', err);
+        addLog('WEBSOCKET_ERROR', { error: JSON.stringify(err, Object.getOwnPropertyNames(err)) });
         setStatus('Error');
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event: CloseEvent) => {
+        addLog('WEBSOCKET_CLOSED', { code: event.code, reason: event.reason, wasClean: event.wasClean });
         if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
         
         // This is the auto-reconnect logic
-        if (status !== 'Idle' && status !== 'Error') {
+        if (event.code !== 1000) { // Don't reconnect on normal closure
+            addLog('RECONNECT_LOGIC_TRIGGER_CHECK', { currentStatus: status, canReconnect: status !== 'Idle' && status !== 'Error' });
             const delay = RECONNECT_INTERVALS[reconnectAttemptRef.current] || RECONNECT_INTERVALS[RECONNECT_INTERVALS.length - 1];
+            addLog('RECONNECT_SCHEDULED', { attempt: reconnectAttemptRef.current + 1, delay });
             reconnectAttemptRef.current++;
-
             setStatus('Reconnecting...');
             reconnectTimeoutRef.current = window.setTimeout(connect, delay);
         }
     };
-  }, [status, stopSession]);
+  }, [status, stopSession, addLog, setStatus, setAudioActive]);
 
 
   const startSession = useCallback(async (preset: Preset) => {
     if (status !== 'Idle') return;
     
+    logsRef.current = []; // Clear logs for new session
+    sessionStartTimeRef.current = Date.now();
+    addLog('SESSION_START_REQUESTED', { preset });
+    addLog('CLIENT_ENV_INFO', {
+        userAgent: navigator.userAgent,
+        language: navigator.language,
+        platform: navigator.platform,
+        screen: `${window.screen.width}x${window.screen.height}`
+    });
     presetRef.current = preset;
     
     try {
+        addLog('MIC_ACCESS_REQUESTED');
         const stream = await navigator.mediaDevices.getUserMedia({ audio: {
             sampleRate: 16000,
             channelCount: 1,
         } });
         micStreamRef.current = stream;
+        const trackSettings = stream.getAudioTracks()[0].getSettings();
+        addLog('MIC_STREAM_ACQUIRED', { settings: trackSettings });
 
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+        const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+        audioContextRef.current = outputCtx;
+        addLog('AUDIO_CONTEXT_CREATED', { sampleRate: outputCtx.sampleRate, state: outputCtx.state });
+        outputCtx.onstatechange = () => {
+            addLog('AUDIO_CONTEXT_STATE_CHANGED', { state: outputCtx.state });
+        };
 
         const inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
         const source = inputAudioContext.createMediaStreamSource(stream);
         const scriptProcessor = inputAudioContext.createScriptProcessor(4096, 1, 1);
         scriptProcessorRef.current = scriptProcessor;
+        addLog('AUDIO_PROCESSOR_CREATED', { bufferSize: scriptProcessor.bufferSize });
 
         scriptProcessor.onaudioprocess = (e) => {
             if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
                 const inputData = e.inputBuffer.getChannelData(0);
                 const payload = createPcmBlob(inputData);
+                addLog('AUDIO_CHUNK_SENT', { size: payload.data.length, wsReadyState: wsRef.current.readyState });
                 wsRef.current.send(JSON.stringify({ type: 'audio', payload }));
             }
         };
@@ -164,18 +231,21 @@ export const useOhanashi = () => {
 
         connect();
 
-    } catch (err) {
-        console.error("Failed to get microphone access:", err);
+    } catch (err: any) {
+        addLog('ERROR_MIC_ACCESS_DENIED', { name: err.name, message: err.message });
         setStatus('Error');
     }
-  }, [status, connect]);
+  }, [status, connect, addLog, setStatus]);
   
-  // Graceful shutdown on component unmount
+  const getLogs = useCallback(() => {
+    return logsRef.current;
+  }, []);
+
   useEffect(() => {
     return () => {
       stopSession();
     };
   }, [stopSession]);
 
-  return { status, audioActive, startSession, stopSession };
+  return { status, audioActive, startSession, stopSession, getLogs };
 };
