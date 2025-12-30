@@ -1,35 +1,20 @@
-# Ohanashi 🌸
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+</div>
 
-An elegant, minimalist AI conversation interface powered by Google Gemini Live API.
+# Run and deploy your AI Studio app
 
-## Features
+This contains everything you need to run your app locally.
 
-*   **Real-time Voice:** Low-latency conversation using `gemini-2.5-flash-native-audio`.
-*   **Advanced Acoustic Modeling:** Customize Pitch, Speed, Breathiness, and Emotion.
-*   **Visualizer:** Real-time audio visualization.
-*   **Preset Management:** Save and load different AI personas.
+View your app in AI Studio: https://ai.studio/apps/drive/1UbLybBs8ugDPG6abhfq-UOo7CwHr312k
 
-## Local Development
+## Run Locally
 
-1.  Clone the repository.
-2.  Install dependencies:
-    ```bash
-    npm install
-    ```
-3.  Create a `.env` file in the root directory and add your Google Gemini API Key:
-    ```env
-    API_KEY=your_google_api_key_here
-    ```
-4.  Run the development server:
-    ```bash
-    npm run dev
-    ```
+**Prerequisites:**  Node.js
 
-## Deployment on Vercel
 
-1.  Push this repository to GitHub.
-2.  Import the project in Vercel.
-3.  **CRITICAL:** In the Vercel Project Settings, go to **Environment Variables** and add:
-    *   Key: `API_KEY`
-    *   Value: `[Your Google Gemini API Key]`
-4.  Deploy.
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`

@@ -1,664 +1,377 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
-import { Preset, INITIAL_PRESET, VoiceModel, SupportedLanguage } from './types';
-import { AdvancedEditor } from './components/AdvancedEditor';
-import { createPcmBlob, decodeAudioData, buildSystemInstruction, base64ToUint8Array } from './utils/audioUtils';
-import { Visualizer } from './components/Visualizer';
-import { initDB, savePreset, deletePreset, getAllPresets } from './utils/db';
-import { Modal } from './components/Modal';
-import { SessionLogger } from './utils/logger';
 
-const PlusIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" /></svg>;
-const TrashIcon = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>;
-const MicOffIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3l18 18" /></svg>;
-const SparklesIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>;
-const SquareIcon = () => <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1" /></svg>;
-const CloseIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>;
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import { Preset, AppState, Language, VoiceModel, PitchMode, AdvancedVocalSettings } from './types.ts';
+import { APP_TITLE, DEFAULT_PRESETS } from './constants.ts';
+import { Button } from './components/Button.tsx';
+import { Modal } from './components/Modal.tsx';
+import { AudioVisualizer } from './components/AudioVisualizer.tsx';
+import { getAllPresets, savePresetDB, deletePresetDB } from './db.tsx';
+import { useOhanashi } from './hooks/useOhanashi.ts';
 
-type View = 'DASHBOARD' | 'EDITOR' | 'SESSION';
-type SessionStatus = 'CONNECTING' | 'LISTENING' | 'PROCESSING' | 'SPEAKING' | 'RECONNECTING' | 'ERROR';
+const ADVANCED_OPTIONS = {
+  texture: [
+    { id: 'husky', label: 'Husky' },
+    { id: 'hoarse', label: 'Serak / Hoarse' },
+    { id: 'deep', label: 'Deep / Berat' },
+    { id: 'airy', label: 'Airy / Breathy' },
+    { id: 'sharp', label: 'Sharp / Tajam' }
+  ],
+  breathing: [
+    { id: 'heavy', label: 'Heavy Breathing' },
+    { id: 'subtle', label: 'Subtle Breath' },
+    { id: 'pauses', label: 'Frequent Pauses' },
+    { id: 'sighs', label: 'Occasional Sighs' }
+  ],
+  expression: [
+    { id: 'tension', label: 'Vocal Tension' },
+    { id: 'dynamic', label: 'High Pressure' },
+    { id: 'soft', label: 'Gentle / Lembut' },
+    { id: 'monotone', label: 'Calm / Flat' }
+  ]
+};
 
 export default function App() {
-  const [view, setView] = useState<View>('DASHBOARD');
+  const [appState, setAppState] = useState<AppState>('home');
   const [presets, setPresets] = useState<Preset[]>([]);
-  const [activePreset, setActivePreset] = useState<Preset>(INITIAL_PRESET);
-  const [loading, setLoading] = useState(true);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [editData, setEditData] = useState<Preset>(INITIAL_PRESET);
+  const [currentPreset, setCurrentPreset] = useState<Preset | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingPreset, setEditingPreset] = useState<Partial<Preset> | null>(null);
+
+  const { status, audioActive, startSession, stopSession } = useOhanashi();
 
   useEffect(() => {
-    const load = async () => {
+    const loadData = async () => {
       try {
-        const data = await initDB();
-        setPresets(data);
+        const data = await getAllPresets();
+        if (data.length === 0) {
+          for (const p of DEFAULT_PRESETS) {
+            await savePresetDB({ ...p });
+          }
+          setPresets(DEFAULT_PRESETS);
+        } else {
+          setPresets(data);
+        }
       } catch (err) {
-        console.error("DB Init failed", err);
-      } finally {
-        setLoading(false);
+        console.error("Failed to load presets", err);
       }
     };
-    load();
+    loadData();
   }, []);
 
-  const refreshPresets = async () => {
-    const data = await getAllPresets();
-    setPresets(data);
+  const handleCreatePreset = () => {
+    setEditingPreset({
+      id: Math.random().toString(36).substr(2, 9),
+      name: '',
+      aiNickname: '',
+      voiceModel: VoiceModel.KORE,
+      language: Language.INDONESIA,
+      systemInstruction: '',
+      pitch: PitchMode.NORMAL,
+      temperature: 0.7,
+      advancedMode: false,
+      advancedVocal: { texture: [], breathing: [], expression: [] },
+      createdAt: Date.now(),
+    });
+    setIsModalOpen(true);
   };
 
-  const handleCreateNew = () => {
-    setEditData({ ...INITIAL_PRESET, id: uuidv4(), createdAt: Date.now() });
-    setView('EDITOR');
+  const handleEditPreset = (preset: Preset) => {
+    setEditingPreset({ ...preset });
+    setIsModalOpen(true);
   };
 
-  const handleEdit = (preset: Preset) => {
-    setEditData(preset);
-    setView('EDITOR');
+  const savePreset = async () => {
+    if (!editingPreset?.name || !editingPreset?.aiNickname) return;
+    const newPreset = editingPreset as Preset;
+    await savePresetDB(newPreset);
+    setPresets(await getAllPresets());
+    setIsModalOpen(false);
+    setEditingPreset(null);
   };
 
-  const handleDelete = async () => {
-    await deletePreset(editData.id);
-    await refreshPresets();
-    setIsDeleteModalOpen(false);
-    setView('DASHBOARD');
-  };
-
-  const handleSave = async () => {
-    if (!editData.name.trim()) return;
-    await savePreset(editData);
-    await refreshPresets();
-    setView('DASHBOARD');
-  };
-
-  const handleStartSession = (preset: Preset) => {
-    setActivePreset(preset);
-    setView('SESSION');
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-black border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-white text-black font-sans selection:bg-black selection:text-white overflow-hidden relative">
-      <div className="absolute inset-0 bg-[#fafafa] -z-10"></div>
-
-      {view === 'DASHBOARD' && (
-        <Dashboard 
-          presets={presets} 
-          onCreate={handleCreateNew} 
-          onEdit={handleEdit} 
-          onStart={handleStartSession} 
-        />
-      )}
-      
-      {view === 'EDITOR' && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-white/60 backdrop-blur-md animate-fade-in" onClick={() => setView('DASHBOARD')} />
-          <Editor 
-            data={editData} 
-            onChange={setEditData} 
-            onSave={handleSave} 
-            onCancel={() => setView('DASHBOARD')}
-            onDelete={() => setIsDeleteModalOpen(true)}
-          />
-        </div>
-      )}
-
-      {view === 'SESSION' && (
-        <div className="fixed inset-0 z-50 animate-slide-up">
-          <LiveSession 
-            preset={activePreset} 
-            onClose={() => setView('DASHBOARD')} 
-          />
-        </div>
-      )}
-
-      <Modal 
-        isOpen={isDeleteModalOpen}
-        title="Delete Preset"
-        message={`Are you sure you want to delete "${editData.name}"? This action cannot be undone.`}
-        onConfirm={handleDelete}
-        onCancel={() => setIsDeleteModalOpen(false)}
-        confirmText="Delete"
-        isDestructive={true}
-      />
-    </div>
-  );
-}
-
-function Dashboard({ presets, onCreate, onEdit, onStart }: any) {
-  return (
-    <div className="h-screen flex flex-col p-6 md:p-12 animate-fade-in relative overflow-y-auto">
-      <header className="mb-12 flex flex-col items-center justify-center text-center">
-         <h1 className="font-display text-5xl md:text-6xl tracking-wider text-black border-b-2 border-black pb-2 mb-3">Ohanashi</h1>
-         <div className="group flex flex-col items-center gap-1.5 text-[10px] uppercase tracking-[0.15em] text-gray-400 font-mono">
-           <span>Dibuat oleh Philia Space Community</span>
-         </div>
-      </header>
-
-      <div className="flex-1 w-full max-w-6xl mx-auto">
-        {presets.length === 0 ? (
-          <div className="text-center text-gray-400 mt-20 font-serif italic">
-            No conversations yet.<br/>Create a new persona to begin.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-24">
-            {presets.map((p: Preset) => (
-              <div 
-                key={p.id} 
-                className="group relative bg-white border border-gray-200 p-6 rounded-2xl transition-all duration-300 hover:shadow-xl hover:border-black/20 flex flex-col justify-between min-h-[220px]"
-              >
-                 <div>
-                    <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-serif text-2xl font-medium text-black group-hover:text-black">{p.name}</h3>
-                        {p.advancedModeEnabled && <SparklesIcon />}
-                    </div>
-                    <p className="text-sm text-gray-400 font-mono mb-6 uppercase tracking-wider">{p.language} • {p.voice}</p>
-                    <div className="text-xs text-gray-500 line-clamp-2 italic font-serif">
-                       "{p.systemInstruction ? p.systemInstruction.slice(0, 60) + '...' : 'System default behavior.'}"
-                    </div>
-                 </div>
-
-                 <div className="mt-8 flex items-center gap-3">
-                    <button 
-                       onClick={() => onStart(p)}
-                       className="flex-1 bg-black text-white py-3 rounded-lg font-medium text-sm uppercase tracking-widest hover:bg-gray-800 active:scale-95 transition-all shadow-md flex items-center justify-center gap-2"
-                    >
-                       <span>Start Talking</span>
-                    </button>
-                    <button 
-                       onClick={() => onEdit(p)}
-                       className="p-3 text-gray-400 hover:text-black border border-transparent hover:border-gray-200 rounded-lg transition-all"
-                    >
-                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                    </button>
-                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <button onClick={onCreate} className="fixed bottom-8 right-8 w-16 h-16 bg-black text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-105 transition-transform z-20">
-        <PlusIcon />
-      </button>
-    </div>
-  );
-}
-
-function Editor({ data, onChange, onSave, onCancel, onDelete }: any) {
-  const update = (field: keyof Preset, value: any) => {
-    let newData = { ...data, [field]: value };
+  const toggleVocalOption = (category: keyof AdvancedVocalSettings, id: string) => {
+    if (!editingPreset?.advancedVocal) return;
+    const currentList = editingPreset.advancedVocal[category];
+    const newList = currentList.includes(id) 
+      ? currentList.filter(item => item !== id)
+      : [...currentList, id];
     
-    if (field === 'browserPitchEnabled' || field === 'browserPitch') {
-        if (newData.browserPitchEnabled) {
-            const pitch = newData.browserPitch;
-            const rate = Math.pow(2, pitch / 12);
-            newData.advancedSettings = {
-                ...newData.advancedSettings,
-                temporal: {
-                    ...newData.advancedSettings.temporal,
-                    speechRate: parseFloat(rate.toFixed(2))
-                }
-            };
-        }
-    }
-
-    onChange(newData);
-  };
-
-  const updateAdvanced = (updatedSettings: any) => {
-    onChange({
-      ...data,
-      advancedSettings: updatedSettings
+    setEditingPreset({
+      ...editingPreset,
+      advancedVocal: { ...editingPreset.advancedVocal, [category]: newList }
     });
   };
 
-  const getPitchLabel = (val: number) => {
-    if (val === 0) return 'Neutral';
-    return val > 0 ? `+${val}` : `${val}`;
-  };
+  useEffect(() => {
+    if (appState === 'chat' && currentPreset) {
+      startSession(currentPreset);
+    }
+  }, [appState, currentPreset, startSession]);
+
+  const handleStopChat = useCallback(() => {
+    stopSession();
+    setAppState('home');
+    setCurrentPreset(null);
+  }, [stopSession]);
 
   return (
-    <div className="relative w-full max-w-lg bg-white border-2 border-black shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] flex flex-col max-h-[85vh] animate-slide-up">
-      <header className="p-5 border-b-2 border-black flex items-center justify-between sticky top-0 bg-white z-20">
-        <div className="flex items-center gap-4">
-          <button onClick={onCancel} className="p-1 hover:bg-gray-100 rounded-full transition-colors"><CloseIcon /></button>
-          <h2 className="font-display text-xl tracking-wide uppercase">Configuration</h2>
-        </div>
-        <button onClick={onDelete} className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"><TrashIcon /></button>
-      </header>
+    <div className="min-h-screen bg-white text-black selection:bg-black selection:text-white font-sans antialiased">
+      <nav className="fixed top-0 inset-x-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-10 py-6 flex items-center justify-between">
+        <motion.h1 
+          whileHover={{ scale: 1.02 }}
+          className="text-2xl font-bold font-serif-jp tracking-[0.2em] cursor-pointer" 
+          onClick={() => { if (appState === 'chat') handleStopChat(); else setAppState('home'); }}
+        >
+          {APP_TITLE}
+        </motion.h1>
+        {appState === 'home' && (
+          <Button variant="primary" size="sm" onClick={handleCreatePreset} className="rounded-full px-8">
+            Create Preset
+          </Button>
+        )}
+      </nav>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-8 scroll-smooth">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="md:col-span-2">
-              <label className="block text-xs uppercase tracking-[0.2em] font-bold text-gray-400 mb-1">Preset Name</label>
-              <input type="text" value={data.name} onChange={e => update('name', e.target.value)} className="w-full text-2xl font-serif border-b-2 border-gray-100 focus:border-black outline-none py-2 bg-transparent transition-colors" placeholder="Untitled Persona" />
-            </div>
-            <div>
-              <label className="block text-xs uppercase tracking-[0.2em] font-bold text-gray-400 mb-1">AI Identity</label>
-              <input type="text" value={data.aiName} onChange={e => update('aiName', e.target.value)} className="w-full text-lg border-b-2 border-gray-100 focus:border-black outline-none py-1 bg-transparent transition-colors" placeholder="AI Name" />
-            </div>
-          </div>
+      <main className="pt-32 pb-24 px-10 max-w-6xl mx-auto">
+        <AnimatePresence mode="wait">
+          {appState === 'home' && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-12">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {presets.map(p => (
+                  <motion.div 
+                    key={p.id} 
+                    whileHover={{ y: -4, shadow: "0 20px 40px -12px rgba(0,0,0,0.1)" }}
+                    className="flex flex-col border-2 border-gray-300 p-6 bg-white transition-all duration-700 relative overflow-hidden group rounded-xl"
+                  >
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-[9px] font-black tracking-[0.3em] text-gray-400 uppercase">{p.language}</span>
+                      <div className="flex gap-4 opacity-0 group-hover:opacity-100 transition-all">
+                        <button onClick={() => handleEditPreset(p)} className="text-[9px] uppercase font-bold hover:text-black text-gray-400">Edit</button>
+                        <button onClick={(e) => { e.stopPropagation(); deletePresetDB(p.id).then(() => getAllPresets().then(setPresets)); }} className="text-[9px] uppercase font-bold text-red-400 hover:text-red-600">Delete</button>
+                      </div>
+                    </div>
+                    <h3 className="text-xl font-serif-jp font-bold mb-2">{p.name}</h3>
+                    <p className="text-xs text-gray-500 italic line-clamp-2 leading-relaxed mb-6">
+                      {p.systemInstruction || "No description provided."}
+                    </p>
+                    <Button variant="outline" fullWidth onClick={() => { setCurrentPreset(p); setAppState('chat'); }} className="border-2 border-black/10 hover:border-black py-3 font-black tracking-widest uppercase text-[10px] mt-auto">
+                      Start Session
+                    </Button>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
 
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <label className="block text-xs uppercase tracking-[0.2em] font-bold text-gray-400 mb-2">Voice Type</label>
+          {appState === 'chat' && currentPreset && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center min-h-[60vh] space-y-16">
+              <div className="relative group">
+                <motion.div 
+                  animate={{ 
+                    scale: audioActive ? [1, 1.05, 1] : 1,
+                    borderColor: audioActive ? "rgba(0,0,0,1)" : "rgba(0,0,0,0.1)"
+                  }} 
+                  transition={{ duration: 1, repeat: audioActive ? Infinity : 0 }}
+                  className="w-56 h-56 rounded-full border flex items-center justify-center bg-white shadow-2xl relative z-10"
+                >
+                  <span className="text-7xl font-serif-jp">{currentPreset.aiNickname.charAt(0)}</span>
+                </motion.div>
+                <AnimatePresence>
+                  {audioActive && (
+                    <motion.div 
+                      initial={{ scale: 0.8, opacity: 0 }} 
+                      animate={{ scale: 1.2, opacity: 0.1 }} 
+                      exit={{ scale: 0.8, opacity: 0 }}
+                      className="absolute inset-0 rounded-full bg-black -z-0" 
+                    />
+                  )}
+                </AnimatePresence>
+              </div>
+              
+              <div className="text-center space-y-4">
+                <h2 className="text-5xl font-bold font-serif-jp tracking-tight">{currentPreset.aiNickname}</h2>
+                <p className="text-gray-300 font-bold uppercase tracking-[0.4em] text-[10px]">{status}</p>
+              </div>
+
+              <div className="w-full max-w-md">
+                <AudioVisualizer active={audioActive || status === 'Connected'} />
+              </div>
+
+              <button 
+                onClick={handleStopChat}
+                className="w-20 h-20 rounded-full border border-gray-100 flex items-center justify-center hover:bg-black hover:text-white transition-all duration-500 group"
+              >
+                <svg className="w-6 h-6 transform group-hover:rotate-90 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingPreset?.name ? 'Edit Preset' : 'Create Identity'}>
+        <div className="space-y-10 pb-6">
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-10">
+            <div className="space-y-3">
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500">Preset Identity Name</label>
+              <input 
+                className="w-full bg-white border-2 border-gray-300 rounded-lg px-5 py-3 outline-none focus:border-black focus:ring-1 focus:ring-black transition-all text-lg font-medium shadow-sm" 
+                placeholder="e.g. Virtual Assistant"
+                value={editingPreset?.name || ''} 
+                onChange={e => setEditingPreset({...editingPreset, name: e.target.value})}
+              />
+            </div>
+            <div className="space-y-3">
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500">AI Calling Name</label>
+              <input 
+                className="w-full bg-white border-2 border-gray-300 rounded-lg px-5 py-3 outline-none focus:border-black focus:ring-1 focus:ring-black transition-all text-lg font-medium shadow-sm" 
+                placeholder="e.g. Hana"
+                value={editingPreset?.aiNickname || ''} 
+                onChange={e => setEditingPreset({...editingPreset, aiNickname: e.target.value})}
+              />
+            </div>
+          </section>
+
+          <section className="grid grid-cols-2 gap-10">
+            <div className="space-y-3">
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500">Voice Profile</label>
               <div className="relative">
-                <select value={data.voice} onChange={e => update('voice', e.target.value)} className="w-full p-3 bg-gray-50 border border-transparent focus:border-black rounded-lg appearance-none font-mono text-xs cursor-pointer">
+                <select 
+                  className="w-full bg-white border-2 border-gray-300 rounded-lg px-5 py-3 outline-none cursor-pointer appearance-none focus:border-black focus:ring-1 focus:ring-black transition-all font-medium shadow-sm" 
+                  value={editingPreset?.voiceModel} 
+                  onChange={e => setEditingPreset({...editingPreset, voiceModel: e.target.value as VoiceModel})}
+                >
                   {Object.values(VoiceModel).map(v => <option key={v} value={v}>{v}</option>)}
                 </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </div>
               </div>
             </div>
-            <div>
-              <label className="block text-xs uppercase tracking-[0.2em] font-bold text-gray-400 mb-2">Language</label>
+            <div className="space-y-3">
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500">Language</label>
               <div className="relative">
-                <select value={data.language} onChange={e => update('language', e.target.value)} className="w-full p-3 bg-gray-50 border border-transparent focus:border-black rounded-lg appearance-none font-mono text-xs cursor-pointer">
-                  {Object.values(SupportedLanguage).map(l => <option key={l} value={l}>{l}</option>)}
+                <select 
+                  className="w-full bg-white border-2 border-gray-300 rounded-lg px-5 py-3 outline-none cursor-pointer appearance-none focus:border-black focus:ring-1 focus:ring-black transition-all font-medium shadow-sm" 
+                  value={editingPreset?.language} 
+                  onChange={e => setEditingPreset({...editingPreset, language: e.target.value as Language})}
+                >
+                  {Object.values(Language).map(l => <option key={l} value={l}>{l}</option>)}
                 </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </div>
               </div>
             </div>
-          </div>
+          </section>
 
-          <div>
-              <div className="flex justify-between items-center mb-3">
-                <label className="block text-xs uppercase tracking-[0.2em] font-bold text-gray-400">Temperature (Creativity)</label>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-gray-100 text-gray-600">
-                  {data.temperature.toFixed(1)}
-                </span>
+          <section className="space-y-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500">Character Soul (System Instruction)</label>
+              <div className="p-4 bg-red-50 border-2 border-red-200 rounded-lg shadow-sm">
+                <p className="text-[10px] font-bold text-red-700 uppercase tracking-widest leading-relaxed flex items-center gap-2">
+                  <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
+                  HANYA UNTUK IDENTITAS & KARAKTER. JANGAN MASUKKAN INSTRUKSI TEKNIS SUARA!
+                </p>
+              </div>
+            </div>
+            <textarea 
+              rows={4} 
+              className="w-full bg-white border-2 border-gray-300 rounded-lg p-5 outline-none focus:border-black focus:ring-1 focus:ring-black transition-all resize-none text-sm leading-relaxed font-medium shadow-sm" 
+              placeholder="Jelaskan siapa dia. Bagaimana sifatnya? Apa tujuannya? Bagaimana latar belakangnya?..."
+              value={editingPreset?.systemInstruction || ''} 
+              onChange={e => setEditingPreset({...editingPreset, systemInstruction: e.target.value})}
+            />
+          </section>
+
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-12 items-end">
+            <div className="space-y-5">
+              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500">Vocal Pitch</label>
+              <div className="flex bg-gray-200 rounded-full p-1.5 border border-gray-300 shadow-inner">
+                {Object.values(PitchMode).map(pm => (
+                  <button 
+                    key={pm} 
+                    className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-full transition-all duration-300 ${editingPreset?.pitch === pm ? 'bg-white text-black shadow-lg scale-105' : 'text-gray-500 hover:text-black'}`}
+                    onClick={() => setEditingPreset({...editingPreset, pitch: pm})}
+                  >
+                    {pm}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-5">
+              <div className="flex justify-between items-center">
+                <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500">Creativity (Temp)</label>
+                <span className="text-sm font-black font-mono">{editingPreset?.temperature}</span>
               </div>
               <input 
                 type="range" 
-                min="0" 
-                max="1.5" 
-                step="0.1" 
-                value={data.temperature} 
-                onChange={e => update('temperature', parseFloat(e.target.value))} 
-                className="w-full h-2 bg-gray-100 rounded-full appearance-none cursor-pointer accent-black touch-none" 
+                min="0" max="1" step="0.1" 
+                className="w-full accent-black cursor-pointer h-2 bg-gray-300 rounded-lg appearance-none" 
+                value={editingPreset?.temperature} 
+                onChange={e => setEditingPreset({...editingPreset, temperature: parseFloat(e.target.value)})} 
               />
-              <div className="flex justify-between mt-2 text-[9px] text-gray-300 font-mono uppercase tracking-widest font-bold">
-                <span>Logical</span>
-                <span>Creative</span>
+            </div>
+          </section>
+
+          <section className="border-t-2 border-gray-100 pt-10">
+            <div className="flex items-center justify-between mb-8 p-6 bg-gray-50 rounded-xl border-2 border-gray-200 shadow-sm">
+              <div>
+                <h4 className="text-sm font-black tracking-widest uppercase">Advanced Vocal Engine</h4>
+                <p className="text-[10px] font-medium text-gray-500 mt-1">Suntikkan tekstur vokal (Husky, Serak, Tekanan).</p>
               </div>
-          </div>
-
-          <div className="space-y-6">
-            <div className={`p-5 rounded-2xl border transition-all ${data.browserPitchEnabled ? 'bg-white border-black shadow-sm' : 'bg-gray-50 border-gray-100'}`}>
-               <div className="flex justify-between items-center mb-5">
-                 <div className="flex items-center gap-2">
-                    <label className="block text-xs uppercase tracking-[0.2em] font-bold text-gray-400">Browser Pitch Shifter</label>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${data.browserPitchEnabled ? 'bg-black text-white' : 'bg-gray-200 text-gray-400'}`}>
-                      {getPitchLabel(data.browserPitch)}
-                    </span>
-                 </div>
-                 <button 
-                   onClick={() => update('browserPitchEnabled', !data.browserPitchEnabled)}
-                   className={`w-10 h-5 rounded-full relative transition-all duration-300 ${data.browserPitchEnabled ? 'bg-black' : 'bg-gray-300'}`}
-                 >
-                   <span className={`absolute top-0.5 left-0.5 bg-white w-4 h-4 rounded-full transition-transform duration-300 ${data.browserPitchEnabled ? 'translate-x-5' : ''}`} />
-                 </button>
-               </div>
-               
-               <div className={`px-1 transition-opacity ${data.browserPitchEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-                 <input 
-                   type="range" 
-                   min="-5" 
-                   max="5" 
-                   step="1" 
-                   value={data.browserPitch} 
-                   onChange={e => update('browserPitch', parseInt(e.target.value))} 
-                   className="w-full h-2 bg-gray-100 rounded-full appearance-none cursor-pointer accent-black touch-none" 
-                 />
-                 <div className="flex justify-between mt-2 text-[9px] text-gray-300 font-mono uppercase tracking-widest font-bold">
-                   <span>-5 Deep</span>
-                   <span>+5 High</span>
-                 </div>
-                 {data.browserPitchEnabled && (
-                   <div className="mt-3 text-[9px] text-black font-mono uppercase tracking-widest text-center">
-                     Synced to Rate: {Math.pow(2, data.browserPitch / 12).toFixed(2)}x
-                   </div>
-                 )}
-               </div>
+              <button 
+                onClick={() => setEditingPreset({...editingPreset, advancedMode: !editingPreset?.advancedMode})}
+                className={`w-14 h-7 rounded-full transition-all relative shadow-inner ${editingPreset?.advancedMode ? 'bg-black' : 'bg-gray-300'}`}
+              >
+                <motion.div 
+                  animate={{ x: editingPreset?.advancedMode ? 28 : 4 }} 
+                  className="absolute top-1 w-5 h-5 bg-white rounded-full shadow-md" 
+                />
+              </button>
             </div>
 
-            <div>
-               <label className="block text-xs uppercase tracking-[0.2em] font-bold text-gray-400 mb-2">System Instructions</label>
-               <textarea 
-                  value={data.systemInstruction} 
-                  onChange={e => update('systemInstruction', e.target.value)} 
-                  className="w-full h-32 p-4 bg-gray-50 border border-transparent focus:border-black rounded-xl resize-none text-sm font-serif leading-relaxed transition-colors" 
-                  placeholder="Tell the AI how to behave, its personality, or roleplay constraints..." 
-               />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between p-5 bg-gray-50 rounded-2xl border border-gray-100">
-            <div>
-              <h3 className="font-display text-sm tracking-widest">Advanced Mode</h3>
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-1 font-bold">Deep acoustic signaling</p>
-            </div>
-            <button 
-              onClick={() => update('advancedModeEnabled', !data.advancedModeEnabled)} 
-              className={`w-14 h-7 rounded-full relative transition-all duration-300 ${data.advancedModeEnabled ? 'bg-black' : 'bg-gray-300'}`}
-            >
-              <span className={`absolute top-1 left-1 bg-white h-5 w-5 rounded-full transition-transform duration-300 shadow-sm ${data.advancedModeEnabled ? 'translate-x-7' : ''}`} />
-            </button>
-          </div>
-
-          {data.advancedModeEnabled && (
-            <div className="animate-fade-in">
-              <AdvancedEditor 
-                settings={data.advancedSettings} 
-                onChange={updateAdvanced}
-                isRateLocked={data.browserPitchEnabled}
-              />
-            </div>
-          )}
-      </div>
-
-      <footer className="p-6 border-t-2 border-black bg-white sticky bottom-0 z-20">
-        <button 
-          onClick={onSave} 
-          className="w-full py-4 bg-black text-white font-bold uppercase tracking-[0.3em] text-xs hover:bg-gray-800 active:scale-[0.98] transition-all shadow-lg flex items-center justify-center gap-3"
-        >
-          <span>Save Configuration</span>
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-        </button>
-      </footer>
-    </div>
-  );
-}
-
-function LiveSession({ preset, onClose }: { preset: Preset, onClose: () => void }) {
-  const [status, setStatus] = useState<SessionStatus>('CONNECTING');
-  const [error, setError] = useState<string | null>(null);
-  const [outputAnalyser, setOutputAnalyser] = useState<AnalyserNode | null>(null);
-  const [inputAnalyser, setInputAnalyser] = useState<AnalyserNode | null>(null);
-  const [silenceDuration, setSilenceDuration] = useState<number>(0);
-  
-  const loggerRef = useRef<SessionLogger | null>(null);
-  const cleanupRef = useRef<(() => void) | null>(null);
-  const isConnectedRef = useRef(false);
-  const nextStartTimeRef = useRef<number>(0);
-  const activeSourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
-  const activeSourceCountRef = useRef(0); 
-  const micMutedRef = useRef(false);
-  const wakeLockRef = useRef<any>(null);
-  const thinkingTimeoutRef = useRef<any>(null);
-  const lastVoiceActivityRef = useRef<number>(0);
-
-  const updateStatus = (newStatus: SessionStatus) => {
-    setStatus(newStatus);
-    loggerRef.current?.logStateChange(newStatus);
-  };
-  
-  useEffect(() => {
-    loggerRef.current = new SessionLogger();
-    let active = true;
-
-    const requestWakeLock = async () => {
-      try { if ('wakeLock' in navigator) wakeLockRef.current = await (navigator as any).wakeLock.request('screen'); } catch (err) {}
-    };
-    requestWakeLock();
-
-    const cleanUpResources = () => {
-       isConnectedRef.current = false;
-       if (wakeLockRef.current) wakeLockRef.current.release().then(() => wakeLockRef.current = null).catch(() => {});
-       if (thinkingTimeoutRef.current) clearTimeout(thinkingTimeoutRef.current);
-       if (cleanupRef.current) { cleanupRef.current(); cleanupRef.current = null; }
-    };
-
-    const stopAllAudio = () => {
-       activeSourcesRef.current.forEach(source => { try { source.stop(); } catch(e) {} });
-       activeSourcesRef.current.clear();
-       activeSourceCountRef.current = 0;
-       nextStartTimeRef.current = 0;
-       micMutedRef.current = false; 
-       lastVoiceActivityRef.current = Date.now();
-       setSilenceDuration(0);
-       if (active) updateStatus('LISTENING');
-    };
-
-    const startSession = async () => {
-      if (!active) return;
-      cleanUpResources();
-
-      try {
-        const apiKey = process.env.API_KEY;
-        if (!apiKey) throw new Error("API Key missing.");
-
-        const ai = new GoogleGenAI({ apiKey });
-        const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-        const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-        await Promise.all([inputCtx.resume(), outputCtx.resume()]);
-
-        const outAnalyser = outputCtx.createAnalyser();
-        outAnalyser.fftSize = 256;
-        const outGain = outputCtx.createGain();
-        outGain.gain.value = 0.8; 
-        outGain.connect(outAnalyser);
-        outAnalyser.connect(outputCtx.destination);
-        setOutputAnalyser(outAnalyser);
-
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const micSource = inputCtx.createMediaStreamSource(stream);
-        const inAnalyser = inputCtx.createAnalyser();
-        inAnalyser.fftSize = 256;
-        micSource.connect(inAnalyser);
-        setInputAnalyser(inAnalyser);
-
-        const scriptProcessor = inputCtx.createScriptProcessor(4096, 1, 1);
-        const systemInstruction = buildSystemInstruction(preset);
-        
-        const sessionPromise = ai.live.connect({
-          model: 'gemini-2.5-flash-native-audio-preview-09-2025', 
-          callbacks: {
-            onopen: () => {
-              if (!active) return;
-              updateStatus('LISTENING');
-              isConnectedRef.current = true;
-              lastVoiceActivityRef.current = Date.now();
-              nextStartTimeRef.current = outputCtx.currentTime;
-
-              scriptProcessor.onaudioprocess = (e) => {
-                 if (!active || !isConnectedRef.current) return;
-                 const inputData = e.inputBuffer.getChannelData(0);
-                 const isAiSpeaking = activeSourceCountRef.current > 0;
-                 const isMuted = micMutedRef.current;
-                 
-                 const chunk = (isAiSpeaking || isMuted) 
-                    ? new Float32Array(inputData.length).fill(0) 
-                    : new Float32Array(inputData);
-                 
-                 const pcmBlob = createPcmBlob(chunk, 16000);
-                 sessionPromise?.then(s => s.sendRealtimeInput({ media: pcmBlob })).catch(() => {});
-              };
-              micSource.connect(scriptProcessor);
-              scriptProcessor.connect(inputCtx.destination);
-            },
-            onmessage: async (msg: LiveServerMessage) => {
-              const base64Audio = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
-              if (base64Audio && active) {
-                if (thinkingTimeoutRef.current) clearTimeout(thinkingTimeoutRef.current);
-                try {
-                  const audioBuffer = await decodeAudioData(base64ToUint8Array(base64Audio), outputCtx);
-                  
-                  const playbackRate = preset.browserPitchEnabled 
-                      ? Math.pow(2, preset.browserPitch / 12)
-                      : 1.0;
-
-                  const effectiveDuration = audioBuffer.duration / playbackRate;
-                  
-                  const currentTime = outputCtx.currentTime;
-                  if (nextStartTimeRef.current < currentTime) {
-                    nextStartTimeRef.current = currentTime;
-                  }
-
-                  const source = outputCtx.createBufferSource();
-                  source.buffer = audioBuffer;
-                  source.playbackRate.value = playbackRate;
-                  source.connect(outGain);
-                  source.start(nextStartTimeRef.current);
-                  activeSourcesRef.current.add(source);
-                  activeSourceCountRef.current++;
-                  updateStatus('SPEAKING'); 
-
-                  nextStartTimeRef.current += effectiveDuration;
-
-                  source.onended = () => {
-                      activeSourcesRef.current.delete(source);
-                      activeSourceCountRef.current--;
-                      if (activeSourceCountRef.current === 0 && active) {
-                          micMutedRef.current = false;
-                          lastVoiceActivityRef.current = Date.now();
-                          setSilenceDuration(0);
-                          updateStatus('LISTENING');
-                      }
-                  };
-                } catch (e) {}
-              }
-              if (msg.serverContent?.interrupted) stopAllAudio();
-            },
-            onclose: () => { isConnectedRef.current = false; if (active) setStatus('ERROR'); },
-            onerror: (e) => console.error(e)
-          },
-          config: {
-            responseModalities: [Modality.AUDIO],
-            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: preset.voice } } },
-            systemInstruction: systemInstruction,
-            generationConfig: { 
-              temperature: preset.temperature,
-              thinkingConfig: { thinkingBudget: 0 }
-            }
-          }
-        });
-
-        cleanupRef.current = () => {
-           isConnectedRef.current = false;
-           stream.getTracks().forEach(t => t.stop());
-           if(inputCtx.state !== 'closed') inputCtx.close();
-           if(outputCtx.state !== 'closed') outputCtx.close();
-           sessionPromise.then(s => s.close()).catch(() => {});
-        };
-      } catch (e: any) {
-        if (active) { updateStatus('ERROR'); setError(e.message); }
-      }
-    };
-    startSession();
-    return () => { active = false; cleanUpResources(); };
-  }, [preset]);
-
-  useEffect(() => {
-    if (!inputAnalyser || (status !== 'LISTENING' && status !== 'PROCESSING' && status !== 'SPEAKING')) return;
-    
-    const vadInterval = setInterval(() => {
-      const data = new Uint8Array(inputAnalyser.frequencyBinCount);
-      inputAnalyser.getByteFrequencyData(data);
-      let sum = 0;
-      for(let i = 0; i < data.length; i++) sum += data[i];
-      const avg = sum / data.length;
-      
-      if (avg > 20) {
-          lastVoiceActivityRef.current = Date.now();
-          setSilenceDuration(0);
-      } else {
-          if (status === 'LISTENING') {
-              const sil = Date.now() - lastVoiceActivityRef.current;
-              setSilenceDuration(sil);
-              if (sil > 8000) handleUserFinished();
-          }
-      }
-    }, 100);
-    
-    return () => clearInterval(vadInterval);
-  }, [inputAnalyser, status]);
-
-  const handleUserFinished = () => {
-      if (status !== 'LISTENING') return;
-      micMutedRef.current = true;
-      setSilenceDuration(0);
-      updateStatus('PROCESSING');
-      
-      if (thinkingTimeoutRef.current) clearTimeout(thinkingTimeoutRef.current);
-      thinkingTimeoutRef.current = setTimeout(() => {
-          micMutedRef.current = false;
-          lastVoiceActivityRef.current = Date.now();
-          if (status === 'PROCESSING') updateStatus('LISTENING');
-      }, 10000); 
-  };
-
-  return (
-    <div className="h-screen w-full bg-black text-white flex flex-col items-center p-8 relative overflow-hidden font-sans">
-      <header className="w-full flex justify-between items-center z-50">
-         <button onClick={onClose} className="text-white/40 hover:text-white transition-colors p-2">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" /></svg>
-         </button>
-         <div className="flex flex-col items-center">
-            <h2 className="font-display text-2xl tracking-widest">{preset.aiName}</h2>
-            <div className={`mt-1 h-1 w-1 rounded-full ${status === 'LISTENING' ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : status === 'SPEAKING' ? 'bg-red-500 shadow-[0_0_8px_#ef4444]' : 'bg-blue-500 animate-pulse'}`}></div>
-         </div>
-         <span className="text-[10px] font-mono opacity-30 uppercase tracking-[0.2em]">{preset.language}</span>
-      </header>
-
-      <main className="flex-1 flex flex-col items-center justify-center w-full max-w-lg space-y-12">
-         <div className="w-full h-56 relative flex flex-col items-center group">
-            <Visualizer outputAnalyser={outputAnalyser} inputAnalyser={inputAnalyser} isActive={true} />
-            
-            {status === 'SPEAKING' && (
-                <div className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 border border-white/5 backdrop-blur-md animate-fade-in">
-                    <MicOffIcon />
-                    <span className="text-[10px] font-mono font-bold text-white/40 tracking-widest uppercase">Mic Muted (AI Talking)</span>
-                </div>
-            )}
-
-            {status === 'LISTENING' && silenceDuration > 5000 && (
-                <div className="absolute -bottom-8 text-[11px] font-mono uppercase tracking-[0.4em] text-yellow-400 animate-fade-in text-center w-full font-bold">
-                    Silence... Auto-stop in {((8000 - silenceDuration) / 1000).toFixed(1)}s
-                </div>
-            )}
-         </div>
-
-         <div className="h-24 flex flex-col items-center justify-center w-full relative">
-            {(status === 'LISTENING' || status === 'PROCESSING') ? (
-                <div className="flex flex-col items-center space-y-4 animate-fade-in">
-                    <button 
-                        onClick={handleUserFinished}
-                        disabled={status === 'PROCESSING'}
-                        className={`group flex flex-col items-center space-y-3 focus:outline-none transition-all duration-500 ${status === 'PROCESSING' ? 'opacity-50 grayscale scale-90 cursor-default' : 'opacity-100 cursor-pointer'}`}
-                    >
-                        <div className="w-20 h-20 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white transition-all duration-300 flex items-center justify-center group-active:scale-95 shadow-2xl">
-                            {status === 'PROCESSING' ? (
-                                <div className="w-4 h-4 bg-blue-500 rounded-full animate-ping"></div>
-                            ) : (
-                                <SquareIcon />
-                            )}
+            <AnimatePresence>
+              {editingPreset?.advancedMode && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -10 }} 
+                  animate={{ opacity: 1, y: 0 }} 
+                  exit={{ opacity: 0, y: -10 }} 
+                  className="space-y-10 mt-6"
+                >
+                  <LayoutGroup>
+                    {Object.entries(ADVANCED_OPTIONS).map(([cat, opts]) => (
+                      <div key={cat} className="space-y-4">
+                        <label className="text-[10px] font-black uppercase text-gray-400 tracking-[0.3em]">{cat}</label>
+                        <div className="flex flex-wrap gap-3">
+                          {opts.map(opt => {
+                            const isSelected = editingPreset.advancedVocal?.[cat as keyof AdvancedVocalSettings]?.includes(opt.id);
+                            return (
+                              <motion.button 
+                                key={opt.id} 
+                                layout
+                                onClick={() => toggleVocalOption(cat as keyof AdvancedVocalSettings, opt.id)}
+                                className={`px-6 py-3 text-[10px] border-2 transition-all rounded-full font-black uppercase tracking-widest shadow-sm ${isSelected ? 'bg-black text-white border-black shadow-black/20 scale-105' : 'border-gray-300 text-gray-500 bg-white hover:border-black hover:text-black'}`}
+                              >
+                                {opt.label}
+                              </motion.button>
+                            );
+                          })}
                         </div>
-                        <span className="text-[11px] font-bold uppercase tracking-[0.4em] text-white/30 group-hover:text-white transition-colors">
-                            {status === 'PROCESSING' ? 'Thinking...' : 'Stop & Send'}
-                        </span>
-                    </button>
-                </div>
-            ) : status === 'SPEAKING' ? (
-                <div className="flex flex-col items-center space-y-3 animate-fade-in">
-                     <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_15px_#ef4444]"></div>
-                     <span className="text-[11px] font-mono uppercase tracking-[0.4em] text-white/50">{preset.aiName} is speaking...</span>
-                </div>
-            ) : null}
-         </div>
-      </main>
+                      </div>
+                    ))}
+                  </LayoutGroup>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </section>
 
-      {error && <div className="absolute bottom-10 px-6 py-3 bg-red-900/60 border border-red-500/50 rounded-full text-xs text-red-100 backdrop-blur-md animate-fade-in shadow-2xl">{error}</div>}
+          <Button fullWidth size="lg" onClick={savePreset} className="py-6 rounded-xl shadow-2xl shadow-black/10 hover:translate-y-[-2px] transition-transform text-base tracking-[0.2em] font-black uppercase">
+            Save Identity
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 {
-  "name": "Ohanashi",
-  "description": "An elegant, minimalist AI conversation interface with advanced acoustic modeling.",
+  "name": "Ohanashi お話",
+  "description": "A minimalist and elegant AI companion app for natural voice conversations with custom personality presets.",
   "requestFramePermissions": [
     "microphone"
   ]
