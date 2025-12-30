@@ -17,6 +17,7 @@ const StopIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor
 const MicOffIcon = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3l18 18" /></svg>;
 const EditIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>;
 const SparklesIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>;
+const MicOnIcon = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>;
 
 // --- VIEW TYPES ---
 type View = 'DASHBOARD' | 'EDITOR' | 'SESSION';
@@ -507,6 +508,7 @@ function LiveSession({ preset, onClose }: { preset: Preset, onClose: () => void 
 
                  if (activeSourceCountRef.current > 0) {
                      // AI IS SPEAKING: Send SILENCE (Heartbeat) to keep connection alive.
+                     // EFFECTIVELY MUTES THE USER
                      chunk = new Float32Array(inputData.length).fill(0);
                      isSilence = true;
                  } else {
@@ -652,8 +654,8 @@ function LiveSession({ preset, onClose }: { preset: Preset, onClose: () => void 
   const getStatusText = () => {
       switch(status) {
           case 'CONNECTING': return "Connecting...";
-          case 'LISTENING': return "Listening...";
-          case 'SPEAKING': return "AI Speaking..."; // Visual feedback
+          case 'LISTENING': return "Your Turn";
+          case 'SPEAKING': return `Listen to ${preset.aiName}...`; 
           case 'RECONNECTING': return "Reconnecting...";
           case 'ERROR': return "Connection Failed";
           default: return "";
@@ -678,24 +680,37 @@ function LiveSession({ preset, onClose }: { preset: Preset, onClose: () => void 
              {/* Status Dot */}
              <div className={`w-2 h-2 rounded-full transition-all duration-300
                ${status === 'LISTENING' ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)]' : 
-                 status === 'SPEAKING' ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)] scale-125' : 
+                 status === 'SPEAKING' ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]' : 
                  status === 'RECONNECTING' ? 'bg-yellow-500 animate-ping' : 'bg-red-500'}`} 
              />
          </div>
       </header>
 
       <main className="flex-1 flex flex-col items-center justify-center w-full z-10 space-y-12">
-         <div className="text-center cursor-pointer group p-4 rounded-2xl hover:bg-white/5 transition-all select-none" onClick={downloadLog}>
-            <h2 className="font-display text-4xl mb-2 group-hover:text-white transition-colors">{preset.aiName}</h2>
+         <div className="text-center cursor-pointer group p-4 rounded-2xl hover:bg-white/5 transition-all select-none flex flex-col items-center space-y-6" onClick={downloadLog}>
+            <h2 className="font-display text-4xl md:text-5xl group-hover:text-white transition-colors">{preset.aiName}</h2>
             
-            {/* Status Text & Mic Indicator */}
-            <div className="flex items-center justify-center space-x-2">
-               {status === 'SPEAKING' && <span className="text-blue-400 animate-pulse"><MicOffIcon /></span>}
-               <p className={`font-serif italic text-lg transition-colors duration-300
-                  ${status === 'RECONNECTING' ? 'text-yellow-400 animate-pulse' : 
-                    status === 'SPEAKING' ? 'text-blue-300' : 'text-white/60'}`}>
-                  {getStatusText()}
-               </p>
+            {/* MIC STATUS INDICATOR */}
+            <div className={`flex items-center gap-3 px-6 py-3 rounded-full border backdrop-blur-md transition-all duration-500 ${
+                status === 'SPEAKING' 
+                    ? 'bg-red-500/10 border-red-500/30 text-red-400 shadow-[0_0_20px_rgba(239,68,68,0.2)]' 
+                    : status === 'LISTENING'
+                        ? 'bg-green-500/10 border-green-500/30 text-green-400 shadow-[0_0_20px_rgba(34,197,94,0.2)]'
+                        : 'bg-white/5 border-white/10 text-white/50'
+            }`}>
+                {status === 'SPEAKING' ? (
+                    <>
+                        <MicOffIcon />
+                        <span className="text-sm font-bold tracking-[0.2em] uppercase">Mic Locked</span>
+                    </>
+                ) : status === 'LISTENING' ? (
+                    <>
+                         <MicOnIcon />
+                        <span className="text-sm font-bold tracking-[0.2em] uppercase">Your Turn</span>
+                    </>
+                ) : (
+                    <span className="text-sm font-bold tracking-[0.2em] uppercase">{getStatusText()}</span>
+                )}
             </div>
          </div>
 
