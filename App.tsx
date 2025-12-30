@@ -15,6 +15,8 @@ const ChevronLeftIcon = () => <svg className="w-6 h-6" fill="none" stroke="curre
 const TrashIcon = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>;
 const StopIcon = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" /></svg>;
 const MicOffIcon = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3l18 18" /></svg>;
+const EditIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>;
+const SparklesIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>;
 
 // --- VIEW TYPES ---
 type View = 'DASHBOARD' | 'EDITOR' | 'SESSION';
@@ -97,7 +99,11 @@ export default function App() {
   // --- RENDERERS ---
 
   return (
-    <div className="min-h-screen bg-white text-black font-sans selection:bg-black selection:text-white overflow-hidden">
+    <div className="min-h-screen bg-white text-black font-sans selection:bg-black selection:text-white overflow-hidden relative">
+      
+      {/* BACKGROUND (Optional subtle texture) */}
+      <div className="absolute inset-0 bg-[#fafafa] -z-10"></div>
+
       {view === 'DASHBOARD' && (
         <Dashboard 
           presets={presets} 
@@ -106,6 +112,7 @@ export default function App() {
           onStart={handleStartSession} 
         />
       )}
+      
       {view === 'EDITOR' && (
         <Editor 
           data={editData} 
@@ -115,11 +122,15 @@ export default function App() {
           onDelete={confirmDelete}
         />
       )}
+
+      {/* SESSION VIEW with Slide-Up Transition */}
       {view === 'SESSION' && (
-        <LiveSession 
-          preset={activePreset} 
-          onClose={() => setView('DASHBOARD')} 
-        />
+        <div className="fixed inset-0 z-50 animate-slide-up">
+          <LiveSession 
+            preset={activePreset} 
+            onClose={() => setView('DASHBOARD')} 
+          />
+        </div>
       )}
 
       <Modal 
@@ -139,44 +150,83 @@ export default function App() {
 
 function Dashboard({ presets, onCreate, onEdit, onStart }: any) {
   return (
-    <div className="max-w-md mx-auto h-screen flex flex-col p-6 animate-fade-in relative">
-      <header className="mb-10 mt-4 flex items-center justify-center">
-         <h1 className="font-display text-4xl tracking-widest text-black border-b-2 border-black pb-2">OHANASHI</h1>
+    <div className="h-screen flex flex-col p-6 md:p-12 animate-fade-in relative overflow-y-auto">
+      <header className="mb-12 flex flex-col items-center justify-center">
+         {/* Main Title - English */}
+         <h1 className="font-display text-5xl md:text-6xl tracking-wider text-black border-b-2 border-black pb-2 mb-3">Ohanashi</h1>
+         
+         {/* Community Credit Link */}
+         <a 
+           href="https://philiaspace.com" 
+           target="_blank" 
+           rel="noopener noreferrer"
+           className="group flex items-center gap-1.5 text-[10px] uppercase tracking-[0.15em] text-gray-400 hover:text-black transition-colors duration-300 font-mono"
+         >
+           <span>Dibuat oleh Philia Space Community</span>
+           <svg 
+             className="w-3 h-3 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" 
+             fill="none" 
+             stroke="currentColor" 
+             viewBox="0 0 24 24"
+           >
+             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+           </svg>
+         </a>
       </header>
 
-      <div className="flex-1 overflow-y-auto space-y-4 pb-20">
+      {/* GRID LAYOUT CONTAINER (Replaces the List Box) */}
+      <div className="flex-1 w-full max-w-6xl mx-auto">
         {presets.length === 0 ? (
           <div className="text-center text-gray-400 mt-20 font-serif italic">
-            No conversations yet.<br/>Create a new persona.
+            No conversations yet.<br/>Create a new persona to begin.
           </div>
         ) : (
-          presets.map((p: Preset) => (
-            <div 
-              key={p.id} 
-              className="group relative border border-gray-200 p-6 rounded-xl hover:border-black transition-all duration-300 hover:shadow-lg bg-white"
-            >
-              <div onClick={() => onStart(p)} className="cursor-pointer">
-                <h3 className="font-serif text-xl font-medium mb-1">{p.name}</h3>
-                <p className="text-sm text-gray-500 mb-4 font-mono">{p.language} • {p.voice}</p>
-                <div className="flex items-center space-x-2">
-                   <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                   <span className="text-xs uppercase tracking-wider text-gray-400">Ready to talk</span>
-                </div>
-              </div>
-              <button 
-                onClick={(e) => { e.stopPropagation(); onEdit(p); }}
-                className="absolute top-6 right-6 text-gray-300 hover:text-black transition-colors"
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-24">
+            {presets.map((p: Preset) => (
+              <div 
+                key={p.id} 
+                className="group relative bg-white border border-gray-200 p-6 rounded-2xl transition-all duration-300 hover:shadow-xl hover:border-black/20 flex flex-col justify-between min-h-[220px]"
               >
-                Edit
-              </button>
-            </div>
-          ))
+                 {/* Card Header */}
+                 <div>
+                    <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-serif text-2xl font-medium text-black group-hover:text-black">{p.name}</h3>
+                        {p.advancedModeEnabled && <SparklesIcon />}
+                    </div>
+                    <p className="text-sm text-gray-400 font-mono mb-6 uppercase tracking-wider">{p.language} • {p.voice}</p>
+                    
+                    <div className="text-xs text-gray-500 line-clamp-2 italic font-serif">
+                       "{p.systemInstruction ? p.systemInstruction.slice(0, 60) + '...' : 'System default behavior.'}"
+                    </div>
+                 </div>
+
+                 {/* Card Actions */}
+                 <div className="mt-8 flex items-center gap-3">
+                    <button 
+                       onClick={() => onStart(p)}
+                       className="flex-1 bg-black text-white py-3 rounded-lg font-medium text-sm uppercase tracking-widest hover:bg-gray-800 active:scale-95 transition-all shadow-md group-hover:shadow-lg flex items-center justify-center gap-2"
+                    >
+                       <span>Start Talking</span>
+                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                    </button>
+                    
+                    <button 
+                       onClick={() => onEdit(p)}
+                       className="p-3 text-gray-400 hover:text-black border border-transparent hover:border-gray-200 rounded-lg transition-all"
+                       title="Edit Configuration"
+                    >
+                       <EditIcon />
+                    </button>
+                 </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
       <button 
         onClick={onCreate}
-        className="fixed bottom-8 right-8 w-14 h-14 bg-black text-white rounded-full flex items-center justify-center shadow-xl hover:scale-105 transition-transform"
+        className="fixed bottom-8 right-8 w-16 h-16 bg-black text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-105 transition-transform z-20"
       >
         <PlusIcon />
       </button>
@@ -190,7 +240,7 @@ function Editor({ data, onChange, onSave, onCancel, onDelete }: any) {
   };
 
   return (
-    <div className="max-w-md mx-auto h-screen flex flex-col bg-white animate-slide-up">
+    <div className="max-w-md mx-auto h-screen flex flex-col bg-white animate-slide-up shadow-2xl">
       <header className="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white/90 backdrop-blur-sm z-10">
         <button onClick={onCancel}><ChevronLeftIcon /></button>
         <h2 className="font-serif text-lg">Configuration</h2>
