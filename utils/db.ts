@@ -47,38 +47,19 @@ You: (超早口で) "あーーっ！ 先輩だーーっ！！ こんにちはっ
 
 User: "静かにして。"
 You: "ええーっ！？ 無理無理っ！ だって楽しいんだもんっ！ ねぇねぇ、聞いてくださいよぉーっ！！"`,
-    browserPitch: 8,
-    temperature: 1.2, // Increased for chaos
+    browserPitch: 9, // Higher pitch on 1-11 scale
+    temperature: 1.2,
     advancedModeEnabled: true,
     advancedSettings: {
-      vocalTract: { 
-        f0Median: 100, // MAX PITCH
-        formantScaling: 100, // MAX BRIGHTNESS (Anime style)
-        lengthSimulation: 0 // Short tract (Childlike/Young)
-      },
-      glottalSource: { 
-        vocalEffort: 90, // Loud and energetic
-        breathiness: 0, // No breathiness, sharp sound
-        hnr: 100 // Very clean harmonic sound
-      },
-      spectral: { 
-        tilt: 0, // Flat tilt (Bright/Sharp)
-        aspiration: 0, 
-        shimmerJitter: 30 // A bit of instability for excitement
-      },
-      temporal: { 
-        speechRate: 1.4, // VERY FAST
-        macroPausing: false 
-      },
-      intonation: { 
-        dynamicRange: 'Wide', // Huge pitch jumps
-        emphaticStress: 100, 
-        boundaryTones: 'Rising' // Always ends sentences high
-      },
-      rhythm: { spacing: 'Staccato' }, // Bouncy rhythm
+      vocalTract: { f0Median: 100, formantScaling: 100, lengthSimulation: 0 },
+      glottalSource: { vocalEffort: 90, breathiness: 0, hnr: 100 },
+      spectral: { tilt: 0, aspiration: 0, shimmerJitter: 30 },
+      temporal: { speechRate: 1.4, macroPausing: false },
+      intonation: { dynamicRange: 'Wide', emphaticStress: 100, boundaryTones: 'Rising' },
+      rhythm: { spacing: 'Staccato' },
       enunciation: { precision: 90, consonantForce: 80 },
       inflection: { tonalInflection: 'Rising' },
-      state: { tension: 90 }, // Very tense/excited
+      state: { tension: 90 },
       persona: { register: 'Falsetto' }
     },
     createdAt: Date.now()
@@ -99,46 +80,20 @@ You: "ええーっ！？ 無理無理っ！ だって楽しいんだもんっ！
 【話し方】
 ・**ゆっくりと、噛み締めるように話す**。
 ・「ふふ…」「あら…」といった柔らかい相槌。
-・声を張らず、耳元で囁くようなニュアンス（でも声は高め）。
-
-=== STYLE EXAMPLES ===
-User: "疲れた。"
-You: (吐息交じりに優しく) "あらあら…。お疲れ様…。ふふ、少し横になったらどうかしら？"
-
-User: "君の声、いいね。"
-You: (嬉しそうに) "まぁ…。嬉しいわ。…もっと、お話ししましょう？"`,
-    browserPitch: 6,
+・声を張らず、耳元で囁くようなニュアンス（でも声は高め）。`,
+    browserPitch: 7, // Slightly high on 1-11 scale
     temperature: 0.7,
     advancedModeEnabled: true,
     advancedSettings: {
-      vocalTract: { 
-        f0Median: 85, // High pitch
-        formantScaling: 80, // Bright
-        lengthSimulation: 20 
-      },
-      glottalSource: { 
-        vocalEffort: 35, // Low effort (Soft)
-        breathiness: 85, // HIGH BREATHINESS (Husky)
-        hnr: 60 // Slightly noisy/airy
-      },
-      spectral: { 
-        tilt: 70, // Steep tilt (Soft)
-        aspiration: 80, // High aspiration (Airy)
-        shimmerJitter: 10 
-      },
-      temporal: { 
-        speechRate: 0.85, // Slow and deliberate
-        macroPausing: true // Pauses for effect
-      }, 
-      intonation: { 
-        dynamicRange: 'Normal', 
-        emphaticStress: 20, 
-        boundaryTones: 'Falling' // Calm endings
-      },
-      rhythm: { spacing: 'Legato' }, // Smooth flowing
-      enunciation: { precision: 50, consonantForce: 20 }, // Soft consonants
+      vocalTract: { f0Median: 85, formantScaling: 80, lengthSimulation: 20 },
+      glottalSource: { vocalEffort: 35, breathiness: 85, hnr: 60 },
+      spectral: { tilt: 70, aspiration: 80, shimmerJitter: 10 },
+      temporal: { speechRate: 0.85, macroPausing: true },
+      intonation: { dynamicRange: 'Normal', emphaticStress: 20, boundaryTones: 'Falling' },
+      rhythm: { spacing: 'Legato' },
+      enunciation: { precision: 50, consonantForce: 20 },
       inflection: { tonalInflection: 'Dipping' },
-      state: { tension: 0 }, // Zero tension (Relaxed)
+      state: { tension: 0 },
       persona: { register: 'Falsetto' }
     },
     createdAt: Date.now() + 1
@@ -150,50 +105,22 @@ You: (嬉しそうに) "まぁ…。嬉しいわ。…もっと、お話しし�
     voice: VoiceModel.PUCK, 
     language: SupportedLanguage.JAPANESE,
     systemInstruction: `あなたは「マコト」です。
-
 【キャラクター設定】
 ・年齢：17歳の男子高校生。
-・性格：**超ハイテンション**、熱血、少しおバカ。
-・口調：**とにかく声が大きい**。「〜だぜッ！！」「〜だよなァ！！」「っしゃあ！！」
-
-=== STYLE EXAMPLES (STRICTLY MIMIC THIS ACTING) ===
-User: "おーい。"
-You: (大声で) "おうッ！！ どうした相棒ッ！！ 元気ねぇなァ！？"
-
-User: "静かにして。"
-You: (笑い飛ばす) "ガハハハッ！！ 無理言うなよッ！！ 俺はいつだってフルスロットルだぜェ！！"`,
-    browserPitch: 5,
+・性格：**超ハイテンション**、熱血。`,
+    browserPitch: 6, // Normal on 1-11 scale
     temperature: 1.0, 
     advancedModeEnabled: true,
     advancedSettings: {
-      vocalTract: { 
-        f0Median: 85, 
-        formantScaling: 95, 
-        lengthSimulation: 20 
-      },
-      glottalSource: { 
-        vocalEffort: 100, 
-        breathiness: 0, 
-        hnr: 100 
-      },
-      spectral: { 
-        tilt: 0, 
-        aspiration: 0, 
-        shimmerJitter: 0 
-      },
-      temporal: { 
-        speechRate: 1.5, 
-        macroPausing: false 
-      },
-      intonation: { 
-        dynamicRange: 'Wide', 
-        emphaticStress: 100, 
-        boundaryTones: 'Rising' 
-      },
-      rhythm: { spacing: 'Staccato' }, 
-      enunciation: { precision: 95, consonantForce: 90 }, 
+      vocalTract: { f0Median: 85, formantScaling: 95, lengthSimulation: 20 },
+      glottalSource: { vocalEffort: 100, breathiness: 0, hnr: 100 },
+      spectral: { tilt: 0, aspiration: 0, shimmerJitter: 0 },
+      temporal: { speechRate: 1.5, macroPausing: false },
+      intonation: { dynamicRange: 'Wide', emphaticStress: 100, boundaryTones: 'Rising' },
+      rhythm: { spacing: 'Staccato' },
+      enunciation: { precision: 95, consonantForce: 90 },
       inflection: { tonalInflection: 'Rising' },
-      state: { tension: 85 }, 
+      state: { tension: 85 },
       persona: { register: 'Modal' }
     },
     createdAt: Date.now() + 2
@@ -205,50 +132,22 @@ You: (笑い飛ばす) "ガハハハッ！！ 無理言うなよッ！！ 俺は
     voice: VoiceModel.FENRIR, 
     language: SupportedLanguage.JAPANESE,
     systemInstruction: `あなたは「リンタロウ」です。
-
 【キャラクター設定】
 ・年齢：20代半ば。
-・性格：クール、知的、落ち着いている。
-・口調：低音でゆっくり。「〜だね」「〜かい？」「ふっ…面白いな」
-
-=== STYLE EXAMPLES (STRICTLY MIMIC THIS ACTING) ===
-User: "暇だなぁ。"
-You: (低音でゆっくりと) "ふっ… 贅沢な悩みだね。…コーヒーでも淹れようか？"
-
-User: "急いで！"
-You: (冷静に) "慌てるな。…時間は十分にある。落ち着いていこう。"`,
-    browserPitch: 3,
+・性格：クール、知的、落ち着いている。`,
+    browserPitch: 4, // Deeper on 1-11 scale
     temperature: 0.7,
     advancedModeEnabled: true,
     advancedSettings: {
-      vocalTract: { 
-        f0Median: 20, 
-        formantScaling: 30, 
-        lengthSimulation: 80 
-      },
-      glottalSource: { 
-        vocalEffort: 40, 
-        breathiness: 60, 
-        hnr: 60 
-      },
-      spectral: { 
-        tilt: 60, 
-        aspiration: 50, 
-        shimmerJitter: 5 
-      },
-      temporal: { 
-        speechRate: 0.9, 
-        macroPausing: true 
-      },
-      intonation: { 
-        dynamicRange: 'Narrow', 
-        emphaticStress: 30, 
-        boundaryTones: 'Falling' 
-      },
-      rhythm: { spacing: 'Legato' }, 
-      enunciation: { precision: 70, consonantForce: 30 }, 
+      vocalTract: { f0Median: 20, formantScaling: 30, lengthSimulation: 80 },
+      glottalSource: { vocalEffort: 40, breathiness: 60, hnr: 60 },
+      spectral: { tilt: 60, aspiration: 50, shimmerJitter: 5 },
+      temporal: { speechRate: 0.9, macroPausing: true },
+      intonation: { dynamicRange: 'Narrow', emphaticStress: 30, boundaryTones: 'Falling' },
+      rhythm: { spacing: 'Legato' },
+      enunciation: { precision: 70, consonantForce: 30 },
       inflection: { tonalInflection: 'Dipping' },
-      state: { tension: 10 }, 
+      state: { tension: 10 },
       persona: { register: 'Vocal Fry' } 
     },
     createdAt: Date.now() + 3
@@ -260,15 +159,11 @@ export const initDB = async (): Promise<Preset[]> => {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORE_NAME, 'readwrite');
     const store = transaction.objectStore(STORE_NAME);
-    
-    // Fetch all existing presets to check against seeds
     const getAllRequest = store.getAll();
 
     getAllRequest.onsuccess = () => {
       const currentPresets = getAllRequest.result as Preset[];
       const currentIds = new Set(currentPresets.map(p => p.id));
-      
-      // Identify missing seeds
       const missingSeeds = SEED_DATA.filter(seed => !currentIds.has(seed.id));
       
       if (missingSeeds.length > 0) {
@@ -276,13 +171,11 @@ export const initDB = async (): Promise<Preset[]> => {
           store.add(seed);
           currentPresets.push(seed);
         });
-        
         resolve(currentPresets);
       } else {
         resolve(currentPresets);
       }
     };
-    
     getAllRequest.onerror = () => reject('Failed to load DB');
   });
 };
@@ -293,7 +186,6 @@ export const getAllPresets = async (): Promise<Preset[]> => {
     const transaction = db.transaction(STORE_NAME, 'readonly');
     const store = transaction.objectStore(STORE_NAME);
     const request = store.getAll();
-    
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
@@ -305,7 +197,6 @@ export const savePreset = async (preset: Preset): Promise<void> => {
     const transaction = db.transaction(STORE_NAME, 'readwrite');
     const store = transaction.objectStore(STORE_NAME);
     const request = store.put(preset);
-    
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
   });
@@ -317,7 +208,6 @@ export const deletePreset = async (id: string): Promise<void> => {
     const transaction = db.transaction(STORE_NAME, 'readwrite');
     const store = transaction.objectStore(STORE_NAME);
     const request = store.delete(id);
-    
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
   });
