@@ -70,6 +70,7 @@ export interface Preset {
   voice: VoiceModel;
   language: SupportedLanguage;
   systemInstruction: string;
+  browserPitch: number; // New: 1-10 scale
   temperature: number;
   advancedModeEnabled: boolean;
   advancedSettings: AdvancedSettings;
@@ -96,6 +97,7 @@ export const INITIAL_PRESET: Preset = {
   voice: VoiceModel.KORE,
   language: SupportedLanguage.ENGLISH,
   systemInstruction: '',
+  browserPitch: 5,
   temperature: 0.7,
   advancedModeEnabled: false,
   advancedSettings: DEFAULT_ADVANCED_SETTINGS,
