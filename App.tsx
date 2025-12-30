@@ -234,9 +234,32 @@ function Editor({ data, onChange, onSave, onCancel, onDelete }: any) {
             </div>
           </div>
 
-          <div>
-             <label className="block text-xs uppercase tracking-wider text-gray-500 mb-2">System Instruction</label>
-             <textarea value={data.systemInstruction} onChange={e => update('systemInstruction', e.target.value)} className="w-full h-32 p-3 bg-gray-50 rounded-lg border-none resize-none text-sm" placeholder="Define behavior..." />
+          <div className="space-y-6">
+            <div>
+               <label className="block text-xs uppercase tracking-wider text-gray-500 mb-2 flex justify-between">
+                 <span>Browser Pitch Shifter (1-10)</span>
+                 <span className="font-mono">{data.browserPitch || 5}/10</span>
+               </label>
+               <input 
+                 type="range" 
+                 min="1" 
+                 max="10" 
+                 step="1" 
+                 value={data.browserPitch || 5} 
+                 onChange={e => update('browserPitch', parseInt(e.target.value))} 
+                 className="w-full h-1.5 bg-gray-200 rounded-full appearance-none cursor-pointer accent-black mb-1" 
+               />
+               <div className="flex justify-between text-[10px] text-gray-400 font-mono uppercase tracking-tighter">
+                 <span>Deep</span>
+                 <span>Normal</span>
+                 <span>High</span>
+               </div>
+            </div>
+
+            <div>
+               <label className="block text-xs uppercase tracking-wider text-gray-500 mb-2">System Instruction</label>
+               <textarea value={data.systemInstruction} onChange={e => update('systemInstruction', e.target.value)} className="w-full h-32 p-3 bg-gray-50 rounded-lg border-none resize-none text-sm" placeholder="Define behavior..." />
+            </div>
           </div>
 
           <div className="flex items-center justify-between pt-4 border-t border-gray-100">
@@ -384,6 +407,12 @@ function LiveSession({ preset, onClose }: { preset: Preset, onClose: () => void 
                   if (nextStartTimeRef.current < currentTime) nextStartTimeRef.current = currentTime;
                   const source = outputCtx.createBufferSource();
                   source.buffer = audioBuffer;
+                  
+                  // Apply Browser-side Pitch Shift
+                  // Scale 1-10: 5 is center. Mapping to cents: (val - 5) * 200
+                  const pitchShiftCents = ((preset.browserPitch || 5) - 5) * 200;
+                  source.detune.value = pitchShiftCents;
+
                   source.connect(outGain);
                   source.start(nextStartTimeRef.current);
                   activeSourcesRef.current.add(source);
