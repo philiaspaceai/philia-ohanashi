@@ -4,16 +4,24 @@ import { AdvancedSettings } from '../types';
 interface AdvancedEditorProps {
   settings: AdvancedSettings;
   onChange: (settings: AdvancedSettings) => void;
+  isRateLocked?: boolean;
 }
 
 // STABLE COMPONENT REFERENCES (Defined outside to prevent remounting)
-const Slider = ({ label, value, min = 0, max = 100, step = 1, onUpdate, format = (v: number) => v.toString() }: any) => {
+const Slider = ({ label, value, min = 0, max = 100, step = 1, onUpdate, format = (v: number) => v.toString(), disabled = false, badge = null }: any) => {
   return (
-    <div className="mb-8 group">
+    <div className={`mb-8 group transition-opacity ${disabled ? 'opacity-50' : 'opacity-100'}`}>
       <div className="flex justify-between mb-3 items-end">
-        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 group-hover:text-black transition-colors duration-300">
-          {label}
-        </label>
+        <div className="flex items-center gap-2">
+            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 group-hover:text-black transition-colors duration-300">
+                {label}
+            </label>
+            {badge && (
+                <span className="text-[8px] font-bold bg-black text-white px-1.5 py-0.5 rounded uppercase tracking-tighter animate-fade-in">
+                    {badge}
+                </span>
+            )}
+        </div>
         <span className="text-xs font-mono font-bold text-black bg-gray-100 px-2 py-0.5 rounded">
           {format(value)}
         </span>
@@ -26,8 +34,9 @@ const Slider = ({ label, value, min = 0, max = 100, step = 1, onUpdate, format =
           max={max}
           step={step}
           value={value}
+          disabled={disabled}
           onChange={(e) => onUpdate(parseFloat(e.target.value))}
-          className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-black transition-all hover:bg-gray-300 touch-none"
+          className={`w-full h-2 rounded-full appearance-none transition-all touch-none ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-gray-200 cursor-pointer accent-black hover:bg-gray-300'}`}
         />
       </div>
     </div>
@@ -56,7 +65,7 @@ const Select = ({ label, options, value, onUpdate }: any) => (
   </div>
 );
 
-export const AdvancedEditor: React.FC<AdvancedEditorProps> = ({ settings, onChange }) => {
+export const AdvancedEditor: React.FC<AdvancedEditorProps> = ({ settings, onChange, isRateLocked = false }) => {
   
   const update = (section: keyof AdvancedSettings, key: string, value: any) => {
     onChange({
@@ -106,9 +115,11 @@ export const AdvancedEditor: React.FC<AdvancedEditorProps> = ({ settings, onChan
               value={settings.temporal.speechRate} 
               min={0.5} 
               max={2.0} 
-              step={0.1} 
+              step={0.01} 
               onUpdate={(v: any) => update("temporal", "speechRate", v)}
-              format={(v: number) => v.toFixed(1) + 'x'} 
+              format={(v: number) => v.toFixed(2) + 'x'} 
+              disabled={isRateLocked}
+              badge={isRateLocked ? "Synced" : null}
             />
             
              <div className="flex items-center justify-between mb-8 mt-2 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm transition-all hover:shadow-md">

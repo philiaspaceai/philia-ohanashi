@@ -30,36 +30,17 @@ const SEED_DATA: Preset[] = [
     voice: VoiceModel.KORE,
     language: SupportedLanguage.JAPANESE,
     systemInstruction: `あなたは「ヒトリコ」です。
-
 【キャラクター設定】
-・性格：**超ポジティブでハイテンションな女子高生**。
-・声質：**アニメ声で、キンキンするくらい高い**。
-・特徴：じっとしていられない。早口でまくし立てる。
-
-【話し方】
-・**常に感嘆符（！）を多用する**。
-・語尾は「〜だよっ！」「〜だもんねっ！」「えへへっ！」と跳ねる感じ。
-・**絶対に落ち込まない**。
-
-=== STYLE EXAMPLES ===
-User: "こんにちは。"
-You: (超早口で) "あーーっ！ 先輩だーーっ！！ こんにちはっ！！ 今日も会えてめっちゃ嬉しいですっ！！"
-
-User: "静かにして。"
-You: "ええーっ！？ 無理無理っ！ だって楽しいんだもんっ！ ねぇねぇ、聞いてくださいよぉーっ！！"`,
-    browserPitch: 9, // Higher pitch on 1-11 scale
+・性格：超ポジティブでハイテンションな女子高生。
+・声質：アニメ声で、キンキンするくらい高い。`,
+    browserPitch: 4, // New scale: +4 (High)
+    browserPitchEnabled: true,
     temperature: 1.2,
     advancedModeEnabled: true,
     advancedSettings: {
+      ...DEFAULT_ADVANCED_SETTINGS,
       vocalTract: { f0Median: 100, formantScaling: 100, lengthSimulation: 0 },
-      glottalSource: { vocalEffort: 90, breathiness: 0, hnr: 100 },
-      spectral: { tilt: 0, aspiration: 0, shimmerJitter: 30 },
-      temporal: { speechRate: 1.4, macroPausing: false },
-      intonation: { dynamicRange: 'Wide', emphaticStress: 100, boundaryTones: 'Rising' },
-      rhythm: { spacing: 'Staccato' },
-      enunciation: { precision: 90, consonantForce: 80 },
-      inflection: { tonalInflection: 'Rising' },
-      state: { tension: 90 },
+      temporal: { speechRate: 1.26, macroPausing: false }, // Synced to pitch +4
       persona: { register: 'Falsetto' }
     },
     createdAt: Date.now()
@@ -71,56 +52,38 @@ You: "ええーっ！？ 無理無理っ！ だって楽しいんだもんっ！
     voice: VoiceModel.KORE,
     language: SupportedLanguage.JAPANESE,
     systemInstruction: `あなたは「アカネ」です。
-
 【キャラクター設定】
-・性格：**極めて穏やかで、包容力があるお姉さん**。
-・声質：**高音だが、吐息交じり（ハスキー）で落ち着いている**。
-・特徴：相手を安心させるような、ASMRのような話し方。
-
-【話し方】
-・**ゆっくりと、噛み締めるように話す**。
-・「ふふ…」「あら…」といった柔らかい相槌。
-・声を張らず、耳元で囁くようなニュアンス（でも声は高め）。`,
-    browserPitch: 7, // Slightly high on 1-11 scale
+・性格：極めて穏やかで、包容力があるお姉さん。`,
+    browserPitch: 2, // New scale: +2 (Sweet/Light)
+    browserPitchEnabled: true,
     temperature: 0.7,
     advancedModeEnabled: true,
     advancedSettings: {
-      vocalTract: { f0Median: 85, formantScaling: 80, lengthSimulation: 20 },
-      glottalSource: { vocalEffort: 35, breathiness: 85, hnr: 60 },
-      spectral: { tilt: 70, aspiration: 80, shimmerJitter: 10 },
-      temporal: { speechRate: 0.85, macroPausing: true },
-      intonation: { dynamicRange: 'Normal', emphaticStress: 20, boundaryTones: 'Falling' },
-      rhythm: { spacing: 'Legato' },
-      enunciation: { precision: 50, consonantForce: 20 },
-      inflection: { tonalInflection: 'Dipping' },
-      state: { tension: 0 },
+      ...DEFAULT_ADVANCED_SETTINGS,
+      vocalTract: { f0Median: 80, formantScaling: 70, lengthSimulation: 30 },
+      glottalSource: { vocalEffort: 30, breathiness: 70, hnr: 60 },
+      temporal: { speechRate: 1.12, macroPausing: true }, // Synced to pitch +2
       persona: { register: 'Falsetto' }
     },
     createdAt: Date.now() + 1
   },
   {
-    id: 'seed-makoto-v2', 
+    id: 'seed-makoto', 
     name: 'Makoto',
     aiName: 'Makoto',
     voice: VoiceModel.PUCK, 
     language: SupportedLanguage.JAPANESE,
     systemInstruction: `あなたは「マコト」です。
 【キャラクター設定】
-・年齢：17歳の男子高校生。
-・性格：**超ハイテンション**、熱血。`,
-    browserPitch: 6, // Normal on 1-11 scale
+・年齢：17歳の男子高校生。性格：熱血。`,
+    browserPitch: 0, // New scale: 0 (Neutral)
+    browserPitchEnabled: true,
     temperature: 1.0, 
     advancedModeEnabled: true,
     advancedSettings: {
-      vocalTract: { f0Median: 85, formantScaling: 95, lengthSimulation: 20 },
-      glottalSource: { vocalEffort: 100, breathiness: 0, hnr: 100 },
-      spectral: { tilt: 0, aspiration: 0, shimmerJitter: 0 },
-      temporal: { speechRate: 1.5, macroPausing: false },
-      intonation: { dynamicRange: 'Wide', emphaticStress: 100, boundaryTones: 'Rising' },
-      rhythm: { spacing: 'Staccato' },
-      enunciation: { precision: 95, consonantForce: 90 },
-      inflection: { tonalInflection: 'Rising' },
-      state: { tension: 85 },
+      ...DEFAULT_ADVANCED_SETTINGS,
+      vocalTract: { f0Median: 50, formantScaling: 50, lengthSimulation: 50 },
+      temporal: { speechRate: 1.0, macroPausing: false }, // Synced to pitch 0
       persona: { register: 'Modal' }
     },
     createdAt: Date.now() + 2
@@ -133,21 +96,15 @@ You: "ええーっ！？ 無理無理っ！ だって楽しいんだもんっ！
     language: SupportedLanguage.JAPANESE,
     systemInstruction: `あなたは「リンタロウ」です。
 【キャラクター設定】
-・年齢：20代半ば。
-・性格：クール、知的、落ち着いている。`,
-    browserPitch: 4, // Deeper on 1-11 scale
+・年齢：20代半ば。性格：クール、知的。`,
+    browserPitch: -3, // New scale: -3 (Deep)
+    browserPitchEnabled: true,
     temperature: 0.7,
     advancedModeEnabled: true,
     advancedSettings: {
+      ...DEFAULT_ADVANCED_SETTINGS,
       vocalTract: { f0Median: 20, formantScaling: 30, lengthSimulation: 80 },
-      glottalSource: { vocalEffort: 40, breathiness: 60, hnr: 60 },
-      spectral: { tilt: 60, aspiration: 50, shimmerJitter: 5 },
-      temporal: { speechRate: 0.9, macroPausing: true },
-      intonation: { dynamicRange: 'Narrow', emphaticStress: 30, boundaryTones: 'Falling' },
-      rhythm: { spacing: 'Legato' },
-      enunciation: { precision: 70, consonantForce: 30 },
-      inflection: { tonalInflection: 'Dipping' },
-      state: { tension: 10 },
+      temporal: { speechRate: 0.84, macroPausing: true }, // Synced to pitch -3
       persona: { register: 'Vocal Fry' } 
     },
     createdAt: Date.now() + 3
